@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["Ipv6","An IPv6 packet."]]};

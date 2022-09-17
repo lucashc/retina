@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["ConnectionFrame","Ethernet frames in a TCP or UDP connection."]]};

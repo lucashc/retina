@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"type":[["ZcFrame","A zero-copy Ethernet frame."]]};

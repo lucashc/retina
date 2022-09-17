@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["TlsHandshake","A parsed TLS handshake and connection metadata."]]};

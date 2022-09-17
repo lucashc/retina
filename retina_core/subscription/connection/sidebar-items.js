@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":[["Chunk","Start (inclusive) and end (exclusive) interval of contiguous TCP payload bytes."],["Connection","A connection record."],["Flow","A uni-directional flow."]]};
