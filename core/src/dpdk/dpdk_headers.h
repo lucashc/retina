@@ -10,3 +10,4 @@
 #include <rte_mbuf.h>
 #include <rte_flow.h>
 #include <rte_ring.h>
+#include <rte_errno.h>

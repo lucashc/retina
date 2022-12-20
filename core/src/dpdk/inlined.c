@@ -4,6 +4,14 @@
 #include <rte_lcore.h>
 #include <rte_ring.h>
 #include <rte_cycles.h>
+#include <rte_errno.h>
+
+
+/* Expose error message */
+int _rte_errno(void) {
+    return rte_errno;
+}
+/* Till here */
 
 void rte_pktmbuf_free_(struct rte_mbuf *packet) {
     rte_pktmbuf_free(packet);

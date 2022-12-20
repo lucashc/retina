@@ -5,12 +5,15 @@
 // TODO: Why does bindgen generate functions with u128 return types?
 #![allow(improper_ctypes)]
 
+pub mod error;
+
 include!(concat!(env!("OUT_DIR"), "/dpdk.rs"));
 
 use std::os::raw::{c_char, c_int, c_uint, c_void};
 
 #[link(name = "inlined")]
 extern "C" {
+    fn _rte_errno() -> c_int;
     fn rte_pktmbuf_free_(packet: *const rte_mbuf);
     fn rte_pktmbuf_alloc_(mp: *mut rte_mempool) -> *mut rte_mbuf;
     fn rte_eth_tx_burst_(
