@@ -5,21 +5,7 @@
 //! parameter and immutably borrows values from the environment. Built-in subscribable types can
 //! be customized within the framework to provide additional data to the callback if needed.
 
-pub mod connection;
-pub mod connection_frame;
-pub mod dns_transaction;
-pub mod frame;
-pub mod http_transaction;
-pub mod tls_handshake;
 pub mod zc_frame;
-
-// Re-export subscribable types for more convenient usage.
-pub use self::connection::Connection;
-pub use self::connection_frame::ConnectionFrame;
-pub use self::dns_transaction::DnsTransaction;
-pub use self::frame::Frame;
-pub use self::http_transaction::HttpTransaction;
-pub use self::tls_handshake::TlsHandshake;
 pub use self::zc_frame::ZcFrame;
 
 use crate::conntrack::conn_id::FiveTuple;
