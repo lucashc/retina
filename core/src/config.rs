@@ -436,13 +436,9 @@ fn default_log() -> Option<LogConfig> {
 /// ```
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct DisplayConfig {
-    /// Display live throughputs. Defaults to `true`.
-    #[serde(default = "default_display_throughput")]
-    pub throughput: bool,
-
-    /// Display live mempool usage. Defaults to `true`.
-    #[serde(default = "default_display_mempool_usage")]
-    pub mempool_usage: bool,
+    /// Display live throughput stats. Defaults to `true`.
+    #[serde(default = "default_display_stats")]
+    pub display_stats: bool,
 
     /// List of live port statistics to display.
     ///
@@ -456,7 +452,7 @@ pub struct DisplayConfig {
     pub port_stats: Vec<String>,
 }
 
-fn default_display_throughput() -> bool {
+fn default_display_stats() -> bool {
     true
 }
 

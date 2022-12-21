@@ -7,7 +7,7 @@ use std::mem;
 
 use anyhow::{bail, Result};
 use colored::*;
-use prettytable::{color, format, Attr, Cell, Row, Table};
+use tabled::{builder::Builder, Style, Table, TableIteratorExt, row, Concat, Panel, Disable, object::FirstRow};
 
 /// Collects extended statistics
 #[derive(Debug)]
@@ -65,41 +65,32 @@ impl PortStats {
 
     /// Displays all statistics with keyword in list of keywords
     pub(crate) fn display(&self, keywords: &[String]) {
-        if keywords.is_empty() {
-            return;
-        }
-        println!("Port {} statistics", self.port_id);
-        self.display_capture_rate();
-        self.display_out_of_buffer_rate();
-        self.display_discard_rate();
+        // println!("Port {} statistics", self.port_id);
+        let mut capture = self.display_capture_rate();
+        let mut out_of_buffer = self.display_out_of_buffer_rate();
+        let mut discard_rate = self.display_discard_rate();
+
+        capture.with(Disable::row(FirstRow));
+        out_of_buffer.with(Disable::row(FirstRow));
+        discard_rate.with(Disable::row(FirstRow));
+
+        capture.with(Concat::vertical(out_of_buffer));
+        capture.with(Concat::vertical(discard_rate));
+        capture.with(Style::modern());
         
-        // TODO: Get rid of pretty tables, has segfaults internally
-        // let mut table = Table::new();
-        // table.set_format(*format::consts::FORMAT_NO_LINESEP);
-        // println!("Printing stats");
-        // for (label, value) in self.stats.iter() {
-        //     println!("getting label {label} and going for value {value}");
-        //     if keywords.iter().any(|k| label.contains(k)) {
-        //         let value_cell = if *value > 0
-        //             && (label.contains("error")
-        //                 || label.contains("discard")
-        //                 || label.contains("out_of_buffer"))
-        //         {
-        //             Cell::new_align(&value.to_string(), format::Alignment::RIGHT)
-        //                 .with_style(Attr::ForegroundColor(color::RED))
-        //         } else {
-        //             Cell::new_align(&value.to_string(), format::Alignment::RIGHT)
-        //         };
-        //         println!("Doing cells!");
-        //         println!("Cells: {value_cell:?} and {label:?}");
-        //         let hspan1 = value_cell.get_hspan();
-        //         let hspan2 = Cell::new(label).get_hspan();
-        //         println!("hspans: {hspan1} {hspan2}");
-        //         table.add_row(Row::new(vec![value_cell, Cell::new(label)]));
-        //     }
-        // }
-        // // TODO: Error here!
-        // table.printstd();
+        let mut builder_keywords = Builder::default();
+        for (label, value) in self.stats.iter() {
+            if keywords.iter().any(|k| label.contains(k)) {
+                builder_keywords.add_record([label.clone(), value.to_string()]);
+            }
+        }
+        let mut table_keywords = builder_keywords.build();
+        table_keywords.with(Style::modern());
+
+        let mut complete = row![capture, table_keywords];
+        complete.with(Panel::header(format!("Port {0} statistics", self.port_id)));
+        complete.with(Style::modern());
+        println!("{complete}");
     }
 
     /// Prints fraction of packets received in software.
@@ -108,16 +99,16 @@ impl PortStats {
     /// If there are hardware filters configured, then this value indicates that
     /// fraction of total traffic that was filtered by hardware and successfully
     /// delivered to the processing cores.
-    pub(super) fn display_capture_rate(&self) {
+    pub(super) fn display_capture_rate(&self) -> Table{
         let captured = self.stats.get("rx_good_packets");
         let total = self.stats.get("rx_phy_packets");
 
         match (captured, total) {
             (Some(captured), Some(total)) => {
                 let capture_rate = *captured as f64 / *total as f64;
-                println!("SW Capture %: {}", capture_rate.to_string().bright_cyan());
+                vec![["SW Capture %".into(), format!("{capture_rate}%")]].table()
             }
-            _ => println!("SW Capture %: UNKNOWN"),
+            _ => vec![["SW Capture %", "UNKOWN"]].table(),
         }
     }
 
@@ -125,30 +116,16 @@ impl PortStats {
     /// available for the incoming packets, aggregated over all RX queues. A non-zero
     /// value implies that the CPU is not consuming packets fast enough. If there are
     /// no hardware filters configured, this value should be 1 - SW Capture %.
-    pub(super) fn display_out_of_buffer_rate(&self) {
+    pub(super) fn display_out_of_buffer_rate(&self) -> Table {
         let discards = self.stats.get("rx_out_of_buffer");
         let total = self.stats.get("rx_phy_packets");
 
         match (discards, total) {
             (Some(discards), Some(total)) => {
                 let discard_rate = *discards as f64 / *total as f64;
-
-                // arbitrary threshold
-                if discard_rate > 0.0001 {
-                    println!("Out of Buffer %: {}", discard_rate.to_string().bright_red());
-                } else if discard_rate > 0.0 {
-                    println!(
-                        "Out of Buffer %: {}",
-                        discard_rate.to_string().bright_yellow()
-                    );
-                } else {
-                    println!(
-                        "Out of Buffer %: {}",
-                        discard_rate.to_string().bright_green()
-                    );
-                }
+                vec![["Out of Buffer %".into(), format!("{discard_rate}%")]].table()
             }
-            _ => println!("Out of Buffer %: UNKNOWN"),
+            _ => vec![["Out of Buffer %", "UNKOWN"]].table(),
         }
     }
 
@@ -156,24 +133,16 @@ impl PortStats {
     /// the physical port. A non-zero value implies that the NIC or bus is congested and
     /// cannot absorb the traffic coming from the network. A value of zero may still
     /// indicate that the CPU is not consuming packets fast enough.
-    pub(super) fn display_discard_rate(&self) {
+    pub(super) fn display_discard_rate(&self) -> Table {
         let discards = self.stats.get("rx_phy_discard_packets");
         let total = self.stats.get("rx_phy_packets");
 
         match (discards, total) {
             (Some(discards), Some(total)) => {
                 let discard_rate = *discards as f64 / *total as f64;
-
-                // arbitrary threshold
-                if discard_rate > 0.0001 {
-                    println!("HW Discard %: {}", discard_rate.to_string().bright_red());
-                } else if discard_rate > 0.0 {
-                    println!("HW Discard %: {}", discard_rate.to_string().bright_yellow());
-                } else {
-                    println!("HW Discard %: {}", discard_rate.to_string().bright_green());
-                }
+                vec![["HW Discard %".into(), format!("{discard_rate}%")]].table()
             }
-            _ => println!("HW Discard %: UNKNOWN"),
+            _ => vec![["HW Discard %", "UNKOWN"]].table(),
         }
     }
 }

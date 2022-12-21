@@ -16,6 +16,8 @@ use anyhow::{bail, Result};
 use chrono::Local;
 use crossbeam_channel::{tick, Receiver};
 use csv::Writer;
+use tabled::{Panel, builder, col, row, Table};
+use tabled::{builder::Builder, Style};
 use serde::Serialize;
 
 /// Preamble + Start Frame Delimiter
@@ -54,7 +56,7 @@ impl Monitor {
                 if let Some(display_cfg) = &monitor_cfg.display {
                     return Some(Display {
                         ticker: tick(Duration::from_millis(1000)),
-                        throughput: display_cfg.throughput,
+                        display_stats: display_cfg.display_stats,
                         keywords: display_cfg.port_stats.clone(),
                     });
                 }
@@ -141,12 +143,16 @@ impl Monitor {
                                 init_ts = curr_ts;
                                 init = false;
                             }
-                            if display.throughput {
-                                println!("----------------------------------------------");
-                                println!("Current time: {}s", (curr_ts - start_ts).as_secs());
-                                display.mempool_usage(&self.ports);
-                                AggRxStats::display_rates(curr_rx, prev_rx, nms);
-                                AggRxStats::display_dropped(curr_rx, init_rx);
+                            if display.display_stats {
+                                let mempool_table = display.mempool_usage(&self.ports);
+                                let rates_table = AggRxStats::display_rates(curr_rx, prev_rx, nms);
+                                let dropped_table = AggRxStats::display_dropped(curr_rx, init_rx);
+                                let mut tmp_row = row![rates_table, dropped_table];
+                                tmp_row.with(Style::modern());
+                                let mut overall = col![mempool_table, tmp_row];
+                                overall.with(Panel::header(format!("Overall statistics\nCurrent time: {}s", (curr_ts - start_ts).as_secs())));
+                                overall.with(Style::modern());
+                                println!("{overall}");
                             }
                             prev_rx = curr_rx;
                             prev_ts = curr_ts;
@@ -183,27 +189,35 @@ impl Monitor {
 #[derive(Debug)]
 struct Display {
     ticker: Receiver<Instant>,
-    throughput: bool,
+    display_stats: bool,
     keywords: Vec<String>,
 }
 
 impl Display {
     /// Display mempool usage
-    fn mempool_usage(&self, ports: &BTreeMap<PortId, Vec<RxQueue>>) {
+    fn mempool_usage(&self, ports: &BTreeMap<PortId, Vec<RxQueue>>) -> Table {
+        let mut total = Builder::default();
         for name in ports.keys().map(|id| format!("mempool_{}", id.socket_id())) {
             let cname = CString::new(name.clone()).expect("Invalid CString conversion");
             let mempool_raw = unsafe { dpdk::rte_mempool_lookup(cname.as_ptr()) };
             let avail_cnt = unsafe { dpdk::rte_mempool_avail_count(mempool_raw) };
             let inuse_cnt = unsafe { dpdk::rte_mempool_in_use_count(mempool_raw) };
 
-            println!(
-                "{} avail: {}, in use: {} ({:.3}%)",
-                name,
-                avail_cnt,
-                inuse_cnt,
-                100.0 * inuse_cnt as f64 / (inuse_cnt + avail_cnt) as f64
-            );
+            let mut builder = Builder::default();
+            builder.add_record(["Available".into(), format!("{avail_cnt} MBufs")]);
+            builder.add_record(["Usage".into(), format!("{inuse_cnt} MBufs")]);
+            let usage = 100.0 * inuse_cnt as f64 / (inuse_cnt + avail_cnt) as f64;
+            builder.add_record(["Percentage".into(), format!("{usage}%")]);
+
+            let mut table = builder.build();
+            table.with(Panel::header(format!("Mempool {name} statistics")));
+            table.with(Style::modern());
+            total.add_record([table.to_string()]);
         }
+        let mut total_table = total.build();
+        total_table.with(Panel::header("Mempools"));
+        total_table.with(Style::modern());
+        return total_table;
     }
 }
 
@@ -390,53 +404,50 @@ impl AggRxStats {
     }
 
     /// Display live bits per second and packets per second between `curr_rx` and `prev_rx`
-    fn display_rates(curr_rx: AggRxStats, prev_rx: AggRxStats, nms: f64) {
-        println!(
-            "Ingress: {:.0} bps / {:.0} pps",
+    fn display_rates(curr_rx: AggRxStats, prev_rx: AggRxStats, nms: f64) -> Table{
+        let mut builder = Builder::default();
+
+        builder.add_record(["Ingress".into(), format!("{} bps / {} pps",
             (curr_rx.ingress_bits - prev_rx.ingress_bits) as f64 / nms * 1000.0,
-            (curr_rx.ingress_pkts - prev_rx.ingress_pkts) as f64 / nms * 1000.0
-        );
-        println!(
-            "Good:    {:.0} bps / {:.0} pps",
+            (curr_rx.ingress_pkts - prev_rx.ingress_pkts) as f64 / nms * 1000.0)]);
+        builder.add_record(["Good".into(), format!("{} bps / {} pps",
             (curr_rx.good_bits - prev_rx.good_bits) as f64 / nms * 1000.0,
-            (curr_rx.good_pkts - prev_rx.good_pkts) as f64 / nms * 1000.0
-        );
-        println!(
-            "Process: {:.0} bps / {:.0} pps",
+            (curr_rx.good_pkts - prev_rx.good_pkts) as f64 / nms * 1000.0)]);
+        builder.add_record(["Process".into(), format!("{} bps / {} pps",
             (curr_rx.process_bits - prev_rx.process_bits) as f64 / nms * 1000.0,
-            (curr_rx.process_pkts - prev_rx.process_pkts) as f64 / nms * 1000.0
-        );
-        println!(
-            "Drop: {} pps ({}%)",
+            (curr_rx.process_pkts - prev_rx.process_pkts) as f64 / nms * 1000.0)]);
+        builder.add_record(["Drop".into(), format!("{} pps ({}%)",
             (curr_rx.dropped_pkts() - prev_rx.dropped_pkts()) as f64 / nms * 1000.0,
             100.0
                 * ((curr_rx.dropped_pkts() - prev_rx.dropped_pkts()) as f64
-                    / (curr_rx.ingress_pkts - prev_rx.ingress_pkts) as f64)
-        );
+                    / (curr_rx.ingress_pkts - prev_rx.ingress_pkts) as f64) )]);
+        let mut table = builder.build();
+        table.with(Panel::header("Current rates"));
+        table.with(Style::modern());
+        return table;
     }
 
-    fn display_dropped(curr_rx: AggRxStats, init_rx: AggRxStats) {
-        println!(
-            "HW Dropped: {} pkts ({}%)",
+    fn display_dropped(curr_rx: AggRxStats, init_rx: AggRxStats) -> Table {
+        let mut builder = Builder::default();
+        builder.add_record(["HW Dropped".into(), format!("{} pkts ({}%)",
             curr_rx.hw_dropped_pkts - init_rx.hw_dropped_pkts,
             100.0
                 * ((curr_rx.hw_dropped_pkts - init_rx.hw_dropped_pkts) as f64
-                    / (curr_rx.ingress_pkts - init_rx.ingress_pkts) as f64)
-        );
-        println!(
-            "SW Dropped: {} pkts ({}%)",
+                    / (curr_rx.ingress_pkts - init_rx.ingress_pkts) as f64) )]);
+        builder.add_record(["SW Dropped".into(), format!("{} pkts ({}%)",
             curr_rx.sw_dropped_pkts - init_rx.sw_dropped_pkts,
             100.0
                 * ((curr_rx.sw_dropped_pkts - init_rx.sw_dropped_pkts) as f64
-                    / (curr_rx.ingress_pkts - init_rx.ingress_pkts) as f64)
-        );
-        println!(
-            "Total Dropped: {} pkts ({}%)",
+                    / (curr_rx.ingress_pkts - init_rx.ingress_pkts) as f64) )]);
+        builder.add_record(["Total Dropped".into(), format!("{} pkts ({}%)",
             curr_rx.dropped_pkts() - init_rx.dropped_pkts(),
             100.0
                 * ((curr_rx.dropped_pkts() - init_rx.dropped_pkts()) as f64
-                    / (curr_rx.ingress_pkts - init_rx.ingress_pkts) as f64)
-        );
+                    / (curr_rx.ingress_pkts - init_rx.ingress_pkts) as f64) )]);
+        let mut table = builder.build();
+        table.with(Panel::header("Overall Drop"));
+        table.with(Style::modern());
+        table
     }
 
     fn dropped_pkts(&self) -> u64 {
