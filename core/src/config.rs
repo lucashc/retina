@@ -21,14 +21,6 @@ pub fn load_config<P: AsRef<Path>>(path: P) -> RuntimeConfig {
     let config_str = fs::read_to_string(path).expect("ERROR: File read failed");
     let config: RuntimeConfig = toml::from_str(&config_str).expect("Invalid config file");
 
-    // error check config
-    if config.online.is_some() == config.offline.is_some() {
-        log::error!(
-            "Configure either live ports or offline analysis: {:#?}",
-            config
-        );
-        panic!();
-    }
     config
 }
 
@@ -80,13 +72,6 @@ pub struct RuntimeConfig {
     /// Online mode settings. Either `online` or `offline` must be specified.
     #[serde(default = "default_online")]
     pub online: Option<OnlineConfig>,
-
-    /// Offline mode settings. Either `online` or `offline` must be specified.
-    #[serde(default = "default_offline")]
-    pub offline: Option<OfflineConfig>,
-
-    /// Connection tracking settings.
-    pub conntrack: ConnTrackConfig,
 
     #[doc(hidden)]
     /// Runtime filter for testing purposes.
@@ -172,10 +157,6 @@ fn default_online() -> Option<OnlineConfig> {
     None
 }
 
-fn default_offline() -> Option<OfflineConfig> {
-    None
-}
-
 fn default_filter() -> Option<String> {
     None
 }
@@ -191,23 +172,6 @@ impl Default for RuntimeConfig {
                 cache_size: 512,
             },
             online: None,
-            offline: Some(OfflineConfig {
-                mtu: 9702,
-                // assumes Retina is being run from crate root
-                pcap: "./traces/small_flows.pcap".to_string(),
-            }),
-            conntrack: ConnTrackConfig {
-                max_connections: 100_000,
-                max_out_of_order: 100,
-                timeout_resolution: 100,
-                udp_inactivity_timeout: 60_000,
-                tcp_inactivity_timeout: 300_000,
-                tcp_establish_timeout: 5000,
-                init_synack: false,
-                init_fin: false,
-                init_rst: false,
-                init_data: false,
-            },
             filter: None,
         }
     }
@@ -546,147 +510,4 @@ fn default_log_interval() -> u64 {
 
 fn default_log_port_stats() -> Vec<String> {
     vec!["rx".to_string()]
-}
-
-/* --------------------------------------------------------------------------------- */
-
-/// Offline traffic analysis options.
-///
-/// Offline mode runs using a single core and performs offline analysis of already captured pcap
-/// files. Either [OnlineConfig](OnlineConfig) or [OfflineConfig](OfflineConfig) must be specified,
-/// but not both. This mode is primarily intended for functional testing.
-///
-/// ## Example
-/// ```toml
-/// [offline]
-///     pcap = "sample_pcaps/smallFlows.pcap"
-///     mtu = 9702
-/// ```
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct OfflineConfig {
-    /// Path to packet capture (pcap) file.
-    pub pcap: String,
-
-    /// Maximum frame size, equivalent to MTU on a live interface. Defaults to `1500`.
-    ///
-    /// To include jumbo frames, set this value higher (e.g., `9702`).
-    #[serde(default = "default_mtu")]
-    pub mtu: usize,
-}
-
-/* --------------------------------------------------------------------------------- */
-
-/// Connection tracking options.
-///
-/// These options can be used to tune for resource usage vs. accuracy depending on expected network
-/// characteristics.
-///
-/// ## Example
-/// ```toml
-/// [conntrack]
-///     max_connections = 10_000_000
-///     max_out_of_order = 100
-///     timeout_resolution = 100
-///     udp_inactivity_timeout = 60_000
-///     tcp_inactivity_timeout = 300_000
-///     tcp_establish_timeout = 5000
-/// ```
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct ConnTrackConfig {
-    /// Maximum number of connections that can be tracked simultaneously per-core. Defaults to
-    /// `10_000_000`.
-    #[serde(default = "default_max_connections")]
-    pub max_connections: usize,
-
-    /// Maximum number of out-of-order packets allowed per TCP connection before it is force
-    /// expired. Defaults to `100`.
-    #[serde(default = "default_max_out_of_order")]
-    pub max_out_of_order: usize,
-
-    /// Frequency to check for inactive streams (in milliseconds). Defaults to `1000` (1 second).
-    #[serde(default = "default_timeout_resolution")]
-    pub timeout_resolution: usize,
-
-    /// A UDP connection can be inactive for up to this amount of time (in milliseconds) before it
-    /// is force expired. Defaults to `60_000` (1 minute).
-    #[serde(default = "default_udp_inactivity_timeout")]
-    pub udp_inactivity_timeout: usize,
-
-    /// A TCP connection can be inactive for up to this amount of time (in milliseconds) before it
-    /// is force expired. Defaults to `300_000` (5 minutes).
-    #[serde(default = "default_tcp_inactivity_timeout")]
-    pub tcp_inactivity_timeout: usize,
-
-    /// Inactivity time between the first and second packet of a TCP connection before it is force
-    /// expired (in milliseconds).
-    ///
-    /// This approximates connections that remain inactive in either the `SYN-SENT` or
-    /// `SYN-RECEIVED` state without progressing. It is used to prevent memory exhaustion due to SYN
-    /// scans and SYN floods. Defaults to `5000` (5 seconds).
-    #[serde(default = "default_tcp_establish_timeout")]
-    pub tcp_establish_timeout: usize,
-
-    #[doc(hidden)]
-    /// Whether to track TCP connections where the first observed packet is a SYN/ACK. Defaults to
-    /// `false`.
-    #[serde(default = "default_init_synack")]
-    pub init_synack: bool,
-
-    #[doc(hidden)]
-    /// Whether to track TCP connections where the first observed packet is a FIN. Defaults to
-    /// `false`.
-    #[serde(default = "default_init_fin")]
-    pub init_fin: bool,
-
-    #[doc(hidden)]
-    /// Whether to track TCP connections where the first observed packet is a RST. Defaults to
-    /// `false`.
-    #[serde(default = "default_init_rst")]
-    pub init_rst: bool,
-
-    #[doc(hidden)]
-    /// Whether to track TCP connections where the first observed packet is a DATA. Defaults to
-    /// `false`.
-    #[serde(default = "default_init_data")]
-    pub init_data: bool,
-}
-
-fn default_max_connections() -> usize {
-    10_000_000
-}
-
-fn default_max_out_of_order() -> usize {
-    100
-}
-
-fn default_timeout_resolution() -> usize {
-    1000
-}
-
-fn default_udp_inactivity_timeout() -> usize {
-    60_000
-}
-
-fn default_tcp_inactivity_timeout() -> usize {
-    300_000
-}
-
-fn default_tcp_establish_timeout() -> usize {
-    5000
-}
-
-fn default_init_synack() -> bool {
-    false
-}
-
-fn default_init_fin() -> bool {
-    false
-}
-
-fn default_init_rst() -> bool {
-    false
-}
-
-fn default_init_data() -> bool {
-    false
 }

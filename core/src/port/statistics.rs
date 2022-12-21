@@ -72,26 +72,34 @@ impl PortStats {
         self.display_capture_rate();
         self.display_out_of_buffer_rate();
         self.display_discard_rate();
-
-        let mut table = Table::new();
-        table.set_format(*format::consts::FORMAT_NO_LINESEP);
-        for (label, value) in self.stats.iter() {
-            if keywords.iter().any(|k| label.contains(k)) {
-                let value_cell = if *value > 0
-                    && (label.contains("error")
-                        || label.contains("discard")
-                        || label.contains("out_of_buffer"))
-                {
-                    Cell::new_align(&value.to_string(), format::Alignment::RIGHT)
-                        .with_style(Attr::ForegroundColor(color::RED))
-                } else {
-                    Cell::new_align(&value.to_string(), format::Alignment::RIGHT)
-                };
-
-                table.add_row(Row::new(vec![value_cell, Cell::new(label)]));
-            }
-        }
-        table.printstd();
+        
+        // TODO: Get rid of pretty tables, has segfaults internally
+        // let mut table = Table::new();
+        // table.set_format(*format::consts::FORMAT_NO_LINESEP);
+        // println!("Printing stats");
+        // for (label, value) in self.stats.iter() {
+        //     println!("getting label {label} and going for value {value}");
+        //     if keywords.iter().any(|k| label.contains(k)) {
+        //         let value_cell = if *value > 0
+        //             && (label.contains("error")
+        //                 || label.contains("discard")
+        //                 || label.contains("out_of_buffer"))
+        //         {
+        //             Cell::new_align(&value.to_string(), format::Alignment::RIGHT)
+        //                 .with_style(Attr::ForegroundColor(color::RED))
+        //         } else {
+        //             Cell::new_align(&value.to_string(), format::Alignment::RIGHT)
+        //         };
+        //         println!("Doing cells!");
+        //         println!("Cells: {value_cell:?} and {label:?}");
+        //         let hspan1 = value_cell.get_hspan();
+        //         let hspan2 = Cell::new(label).get_hspan();
+        //         println!("hspans: {hspan1} {hspan2}");
+        //         table.add_row(Row::new(vec![value_cell, Cell::new(label)]));
+        //     }
+        // }
+        // // TODO: Error here!
+        // table.printstd();
     }
 
     /// Prints fraction of packets received in software.

@@ -45,14 +45,9 @@
 #[macro_use]
 mod timing;
 pub mod config;
-mod conntrack;
 #[doc(hidden)]
 #[allow(clippy::all)]
 mod dpdk;
-// The filter module must be public to be accessible by the filter_gen procedural macro crate.
-// However, module functions should be opaque to users, so documentation is hidden by default.
-#[doc(hidden)]
-pub mod filter;
 mod lcore;
 mod memory;
 mod port;
@@ -60,8 +55,6 @@ pub mod protocols;
 mod runtime;
 pub mod subscription;
 pub mod utils;
-
-pub use self::conntrack::conn_id::{ConnId, FiveTuple};
 pub use self::memory::mbuf::Mbuf;
 pub use self::runtime::Runtime;
 

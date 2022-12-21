@@ -1,11 +1,7 @@
 use super::CoreId;
-use crate::config::ConnTrackConfig;
-use crate::conntrack::{ConnTracker, TrackerConfig};
 use crate::dpdk;
-use crate::filter::Filter;
 use crate::memory::mbuf::Mbuf;
 use crate::port::{RxQueue, RxQueueType};
-use crate::protocols::stream::ParserRegistry;
 use crate::subscription::*;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -21,8 +17,6 @@ where
 {
     pub(crate) id: CoreId,
     pub(crate) rxqueues: Vec<RxQueue>,
-    pub(crate) filter: Filter,
-    pub(crate) conntrack: ConnTrackConfig,
     pub(crate) subscription: Arc<Subscription<'a, S>>,
     pub(crate) is_running: Arc<AtomicBool>,
 }
@@ -34,16 +28,12 @@ where
     pub(crate) fn new(
         core_id: CoreId,
         rxqueues: Vec<RxQueue>,
-        filter: Filter,
-        conntrack: ConnTrackConfig,
         subscription: Arc<Subscription<'a, S>>,
         is_running: Arc<AtomicBool>,
     ) -> Self {
         RxCore {
             id: core_id,
             rxqueues,
-            filter,
-            conntrack,
             subscription,
             is_running,
         }
@@ -86,34 +76,25 @@ where
         let mut nb_pkts = 0;
         let mut nb_bytes = 0;
 
-        let config = TrackerConfig::from(&self.conntrack);
-        let registry = ParserRegistry::build::<S>(&self.filter).expect("Unable to build registry");
-        log::debug!("{:#?}", registry);
-        let mut conn_table = ConnTracker::<S::Tracked>::new(config, registry);
-
         while self.is_running.load(Ordering::Relaxed) {
             for rxqueue in self.rxqueues.iter() {
                 let mbufs: Vec<Mbuf> = self.rx_burst(rxqueue, 32);
                 for mbuf in mbufs.into_iter() {
-                    // log::debug!("{:#?}", mbuf);
-                    // log::debug!("Mark: {}", mbuf.mark());
-                    // log::debug!("RSS Hash: 0x{:x}", mbuf.rss_hash());
-                    // log::debug!(
-                    //     "Queue ID: {}, Port ID: {}, Core ID: {}",
-                    //     rxqueue.qid,
-                    //     rxqueue.pid,
-                    //     self.id,
-                    // );
+                    log::debug!("{:#?}", mbuf);
+                    log::debug!("Mark: {}", mbuf.mark());
+                    log::debug!("RSS Hash: 0x{:x}", mbuf.rss_hash());
+                    log::debug!(
+                        "Queue ID: {}, Port ID: {}, Core ID: {}",
+                        rxqueue.qid,
+                        rxqueue.pid,
+                        self.id,
+                    );
                     nb_pkts += 1;
                     nb_bytes += mbuf.data_len() as u64;
-                    S::process_packet(mbuf, &self.subscription, &mut conn_table);
+                    S::process_packet(mbuf, &self.subscription);
                 }
             }
-            conn_table.check_inactive(&self.subscription);
         }
-
-        // // Deliver remaining data in table from unfinished connections
-        conn_table.drain(&self.subscription);
 
         log::info!(
             "Core {} total recv from {}: {} pkts, {} bytes",

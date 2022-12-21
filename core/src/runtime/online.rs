@@ -1,6 +1,5 @@
-use crate::config::{ConnTrackConfig, OnlineConfig, RuntimeConfig};
+use crate::config::{OnlineConfig, RuntimeConfig};
 use crate::dpdk;
-use crate::filter::Filter;
 use crate::lcore::monitor::Monitor;
 use crate::lcore::rx_core::RxCore;
 use crate::lcore::{CoreId, SocketId};
@@ -21,7 +20,6 @@ where
     ports: BTreeMap<PortId, Port>,
     rx_cores: BTreeMap<CoreId, RxCore<'a, S>>,
     monitor: Monitor,
-    filter: Filter,
     options: OnlineOptions,
 }
 
@@ -33,7 +31,6 @@ where
         config: &RuntimeConfig,
         options: OnlineOptions,
         mempools: &mut BTreeMap<SocketId, Mempool>,
-        filter: Filter,
         subscription: Arc<Subscription<'a, S>>,
     ) -> Self {
         // Set up signal handler
@@ -85,8 +82,6 @@ where
             let rx_core = RxCore::new(
                 core_id,
                 rxqueues,
-                filter.clone(),
-                options.conntrack.clone(),
                 Arc::clone(&subscription),
                 Arc::clone(&is_running),
             );
@@ -99,7 +94,6 @@ where
             ports,
             rx_cores,
             monitor,
-            filter,
             options,
         }
     }
@@ -145,19 +139,6 @@ where
         log::info!("Starting ports...");
         for port in self.ports.values() {
             port.start();
-
-            if self.options.online.hardware_assist {
-                log::info!("Applying hardware filters...");
-                let res = self.filter.set_hardware_filter(port);
-                match res {
-                    Ok(_) => (),
-                    Err(error) => {
-                        log::warn!("Failed to apply some patterns, passing all traffic through Port {}. Reason: {}", port.id, error);
-                    }
-                }
-            } else {
-                log::info!("No hardware assist configured for port {}, passing all traffic through device.", port.id);
-            }
         }
     }
 
@@ -172,8 +153,7 @@ where
 /// Read-only runtime options for the offline core
 #[derive(Debug)]
 pub(crate) struct OnlineOptions {
-    pub(crate) online: OnlineConfig,
-    pub(crate) conntrack: ConnTrackConfig,
+    pub(crate) online: OnlineConfig
 }
 
 extern "C" fn launch_rx<S>(arg: *mut c_void) -> i32

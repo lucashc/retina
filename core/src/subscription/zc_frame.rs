@@ -26,14 +26,8 @@
 //!     // runtime dropped at end of scope
 //! }
 //! ```
-
-use crate::conntrack::conn_id::FiveTuple;
-use crate::conntrack::pdu::{L4Context, L4Pdu};
-use crate::conntrack::ConnTracker;
-use crate::filter::FilterResult;
 use crate::memory::mbuf::Mbuf;
-use crate::protocols::stream::{ConnParser, Session};
-use crate::subscription::{Level, Subscribable, Subscription, Trackable};
+use crate::subscription::{Subscribable, Subscription};
 
 use std::collections::HashMap;
 
@@ -54,77 +48,11 @@ use std::collections::HashMap;
 pub type ZcFrame = Mbuf;
 
 impl Subscribable for ZcFrame {
-    type Tracked = TrackedZcFrame;
-
-    fn level() -> Level {
-        Level::Packet
-    }
-
-    fn parsers() -> Vec<ConnParser> {
-        vec![]
-    }
 
     fn process_packet(
         mbuf: Mbuf,
         subscription: &Subscription<Self>,
-        conn_tracker: &mut ConnTracker<Self::Tracked>,
     ) {
-        match subscription.filter_packet(&mbuf) {
-            FilterResult::MatchTerminal(_idx) => {
-                subscription.invoke(mbuf);
-            }
-            FilterResult::MatchNonTerminal(idx) => {
-                if let Ok(ctxt) = L4Context::new(&mbuf, idx) {
-                    conn_tracker.process(mbuf, ctxt, subscription);
-                }
-            }
-            FilterResult::NoMatch => drop(mbuf),
-        }
+        subscription.invoke(mbuf);
     }
-}
-
-/// Buffers packets associated with parsed sessions throughout the duration of the connection.
-/// ## Note
-/// Internal connection state is an associated type of a `pub` trait, and therefore must also be
-/// public. Documentation is hidden by default to avoid confusing users.
-#[doc(hidden)]
-pub struct TrackedZcFrame {
-    session_buf: HashMap<usize, Vec<Mbuf>>,
-}
-
-impl Trackable for TrackedZcFrame {
-    type Subscribed = ZcFrame;
-
-    fn new(_five_tuple: FiveTuple) -> Self {
-        TrackedZcFrame {
-            session_buf: HashMap::new(),
-            // misc_buf: vec![],
-        }
-    }
-
-    fn pre_match(&mut self, pdu: L4Pdu, session_id: Option<usize>) {
-        if let Some(session_id) = session_id {
-            self.session_buf
-                .entry(session_id)
-                .or_insert_with(Vec::new)
-                .push(pdu.mbuf_own());
-        } else {
-            drop(pdu);
-            // self.misc_buf.push(pdu.mbuf_own());
-        }
-    }
-
-    fn on_match(&mut self, session: Session, subscription: &Subscription<Self::Subscribed>) {
-        if let Some(session) = self.session_buf.remove(&session.id) {
-            session.into_iter().for_each(|mbuf| {
-                subscription.invoke(mbuf);
-            });
-        }
-    }
-
-    fn post_match(&mut self, pdu: L4Pdu, subscription: &Subscription<Self::Subscribed>) {
-        subscription.invoke(pdu.mbuf_own());
-    }
-
-    fn on_terminate(&mut self, _subscription: &Subscription<Self::Subscribed>) {}
 }

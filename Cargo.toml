@@ -1,7 +1,6 @@
 [workspace]
 members = [
-    "core",
-    "filtergen",
+    "core"
 ]
 
 [profile.release]

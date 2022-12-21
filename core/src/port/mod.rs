@@ -173,12 +173,6 @@ impl Port {
 
     /// Flush flow rules and stop port
     pub(crate) fn stop(&self) {
-        log::info!("Flushing hardware flow rules on Port {}...", self.id);
-        let mut error: dpdk::rte_flow_error = unsafe { mem::zeroed() };
-        let ret = unsafe { dpdk::rte_flow_flush(self.id.raw(), &mut error) };
-        if ret != 0 {
-            log::error!("Failed to flush hardware rules from Port {}.", self.id);
-        }
         let ret = unsafe { dpdk::rte_eth_dev_stop(self.id.raw()) };
         if ret != 0 {
             log::error!("Failed to stop Port {}.", self.id);

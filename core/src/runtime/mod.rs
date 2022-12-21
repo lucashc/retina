@@ -3,14 +3,11 @@
 //! The runtime initializes the DPDK environment abstraction layer, creates memory pools, launches
 //! the packet processing cores, and manages logging and display output.
 
-mod offline;
 mod online;
-use self::offline::*;
 use self::online::*;
 
 use crate::config::*;
 use crate::dpdk;
-use crate::filter::{Filter, FilterFactory};
 use crate::lcore::SocketId;
 use crate::memory::mempool::Mempool;
 use crate::subscription::*;
@@ -32,7 +29,6 @@ where
     #[allow(dead_code)]
     mempools: BTreeMap<SocketId, Mempool>,
     online: Option<OnlineRuntime<'a, S>>,
-    offline: Option<OfflineRuntime<'a, S>>,
     #[cfg(feature = "timing")]
     subscription: Arc<Subscription<'a, S>>,
 }
@@ -56,13 +52,9 @@ where
     /// ```
     pub fn new(
         config: RuntimeConfig,
-        factory: fn() -> FilterFactory,
         cb: impl Fn(S) + 'a,
     ) -> Result<Self> {
-        let factory = factory();
-        let filter =
-            Filter::from_str(factory.filter_str.as_str(), true).expect("Failed to parse filter");
-        let subscription = Arc::new(Subscription::new(factory, cb));
+        let subscription = Arc::new(Subscription::new(cb));
 
         println!("Initializing Retina runtime...");
         log::info!("Initializing EAL...");
@@ -90,8 +82,6 @@ where
         let socket_ids = config.get_all_socket_ids();
         let mtu = if let Some(online) = &config.online {
             online.mtu
-        } else if let Some(offline) = &config.offline {
-            offline.mtu
         } else {
             Mempool::default_mtu()
         };
@@ -104,28 +94,12 @@ where
         let online = config.online.as_ref().map(|cfg| {
             log::info!("Initializing Online Runtime...");
             let online_opts = OnlineOptions {
-                online: cfg.clone(),
-                conntrack: config.conntrack.clone(),
+                online: cfg.clone()
             };
             OnlineRuntime::new(
                 &config,
                 online_opts,
                 &mut mempools,
-                filter.clone(),
-                Arc::clone(&subscription),
-            )
-        });
-
-        let offline = config.offline.as_ref().map(|cfg| {
-            log::info!("Initializing Offline Analysis...");
-            let offline_opts = OfflineOptions {
-                offline: cfg.clone(),
-                conntrack: config.conntrack.clone(),
-            };
-            OfflineRuntime::new(
-                offline_opts,
-                &mempools,
-                filter.clone(),
                 Arc::clone(&subscription),
             )
         });
@@ -134,7 +108,6 @@ where
         Ok(Runtime {
             mempools,
             online,
-            offline,
             #[cfg(feature = "timing")]
             subscription,
         })
@@ -150,8 +123,6 @@ where
     pub fn run(&mut self) {
         if let Some(online) = &mut self.online {
             online.run();
-        } else if let Some(offline) = &self.offline {
-            offline.run();
         } else {
             log::error!("No runtime");
         }
