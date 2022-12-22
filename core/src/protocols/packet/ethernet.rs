@@ -4,16 +4,15 @@ use crate::memory::mbuf::Mbuf;
 use crate::protocols::packet::{Packet, PacketHeader, PacketParseError};
 use crate::utils::types::*;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Result, anyhow};
 use pnet::datalink::MacAddr;
 
-const VLAN_802_1Q: u16 = 0x8100;
-const VLAN_802_1AD: u16 = 0x88a8;
-
-const TAG_SIZE: usize = 4;
+// Ethernet Header size
 const HDR_SIZE: usize = 14;
-const HDR_SIZE_802_1Q: usize = HDR_SIZE + TAG_SIZE;
-const HDR_SIZE_802_1AD: usize = HDR_SIZE_802_1Q + TAG_SIZE;
+
+// VLAN tag size and type
+const TAG_SIZE: usize = 4;
+const VLAN_802_1Q: usize = 0x8100;
 
 /// An Ethernet frame.
 ///
@@ -23,6 +22,8 @@ const HDR_SIZE_802_1AD: usize = HDR_SIZE_802_1Q + TAG_SIZE;
 pub struct Ethernet<'a> {
     /// Fixed header.
     header: EthernetHeader,
+    /// Possible VLAN headers
+    vlan_headers: Vec<VlanHeader>,
     /// Offset to `header` from the start of `mbuf`.
     offset: usize,
     /// Packet buffer.
@@ -56,7 +57,7 @@ impl<'a> Packet<'a> for Ethernet<'a> {
     }
 
     fn header_len(&self) -> usize {
-        self.header.length()
+        self.header.length() + self.vlan_headers.iter().fold(0, |sum, val: &VlanHeader| sum + val.length())
     }
 
     fn next_header_offset(&self) -> usize {
@@ -64,22 +65,12 @@ impl<'a> Packet<'a> for Ethernet<'a> {
     }
 
     fn next_header(&self) -> Option<usize> {
-        let ether_type: u16 = u16::from(self.header.ether_type);
-        match ether_type {
-            VLAN_802_1Q => {
-                if let Ok(dot1q) = self.mbuf.get_data(HDR_SIZE) {
-                    let dot1q: Dot1q = unsafe { *dot1q };
-                    Some(u16::from(dot1q.ether_type).into())
-                } else {
-                    None
-                }
-            }
-            VLAN_802_1AD => {
-                // Unimplemented. TODO: support QinQ
-                None
-            }
-            _ => Some(ether_type.into()),
-        }
+        let ether_type = if self.vlan_headers.is_empty() {
+            u16::from(self.header.ether_type)
+        } else {
+            u16::from(self.vlan_headers.last().unwrap().ether_type)
+        };
+        Some(ether_type.into())
     }
 
     fn parse_from(outer: &'a impl Packet<'a>) -> Result<Self>
@@ -87,8 +78,25 @@ impl<'a> Packet<'a> for Ethernet<'a> {
         Self: Sized,
     {
         if let Ok(header) = outer.mbuf().get_data(0) {
+            let current_header: EthernetHeader = unsafe { *header };
+            let vlan_headers = if u16::from(current_header.ether_type) as usize == VLAN_802_1Q {
+                let mut vlans = vec![];
+                let mut offset = current_header.length();
+                loop {
+                    let next: *const VlanHeader = outer.mbuf().get_data(offset).map_err(|_| anyhow!(PacketParseError::InvalidRead))?;
+                    vlans.push(unsafe { *next });
+                    if u16::from(vlans.last().unwrap().ether_type) as usize == VLAN_802_1Q {
+                        offset += vlans.last().unwrap().length();
+                    } else {
+                        break vlans;
+                    }
+                }
+            } else {
+                vec![]
+            };
             Ok(Ethernet {
                 header: unsafe { *header },
+                vlan_headers,
                 offset: 0,
                 mbuf: outer.mbuf(),
             })
@@ -109,32 +117,19 @@ struct EthernetHeader {
 
 impl PacketHeader for EthernetHeader {
     fn length(&self) -> usize {
-        match self.ether_type.into() {
-            VLAN_802_1Q => HDR_SIZE_802_1Q,
-            VLAN_802_1AD => HDR_SIZE_802_1AD,
-            _ => HDR_SIZE,
-        }
+        HDR_SIZE
     }
 }
 
-/// 802.1Q tag control information and next EtherType.
-///
-/// ## Remarks
-/// This is not a 801.1Q header. The first 16 bits of `Dot1q` is the TCI field and the second 16
-/// bits is the EtherType of the encapsulated protocol.
 #[derive(Debug, Clone, Copy)]
 #[repr(C, packed)]
-struct Dot1q {
+pub struct VlanHeader {
     tci: u16be,
-    ether_type: u16be,
+    ether_type: u16be
 }
 
-impl PacketHeader for Dot1q {
-    /// The four bytes that make up the second byte of the 802.1Q header and the EtherType of the
-    /// encapsulated protocol.
+impl PacketHeader for VlanHeader {
     fn length(&self) -> usize {
         TAG_SIZE
     }
 }
-
-// TODO: Implement QinQ.
