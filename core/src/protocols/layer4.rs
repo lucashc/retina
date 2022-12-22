@@ -1,4 +1,3 @@
-use crate::memory::mbuf::Mbuf;
 use crate::protocols::packet::ethernet::Ethernet;
 use crate::protocols::packet::{ipv4::Ipv4, ipv6::Ipv6};
 use crate::protocols::packet::tcp::{Tcp, TCP_PROTOCOL};
@@ -7,7 +6,7 @@ use crate::protocols::packet::Packet;
 use crate::subscription::ZcFrame;
 
 use anyhow::{bail, Result};
-use nom::bitvec::boxed;
+
 use tabled::{Style, Panel};
 use tabled::builder::Builder;
 

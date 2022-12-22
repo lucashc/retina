@@ -29,7 +29,7 @@
 use crate::memory::mbuf::Mbuf;
 use crate::subscription::{Subscribable, Subscription};
 
-use std::collections::HashMap;
+
 
 /// A zero-copy Ethernet frame.
 ///

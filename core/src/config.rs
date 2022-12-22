@@ -456,10 +456,6 @@ fn default_display_stats() -> bool {
     true
 }
 
-fn default_display_mempool_usage() -> bool {
-    true
-}
-
 fn default_display_port_stats() -> Vec<String> {
     vec![]
 }

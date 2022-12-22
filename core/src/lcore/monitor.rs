@@ -16,7 +16,7 @@ use anyhow::{bail, Result};
 use chrono::Local;
 use crossbeam_channel::{tick, Receiver};
 use csv::Writer;
-use tabled::{Panel, builder, col, row, Table};
+use tabled::{Panel, col, row, Table};
 use tabled::{builder::Builder, Style};
 use serde::Serialize;
 
@@ -77,7 +77,7 @@ impl Monitor {
                         fs::File::create(path.join("config.toml")).expect("create config log");
                     config_file.write_all(toml.as_bytes()).expect("log config");
 
-                    let mut port_wtrs = hashmap! {};
+                    let mut port_wtrs = HashMap::new();
                     for port_id in ports.keys() {
                         let fname = path.join(format!("port{}.csv", port_id));
                         let wtr = Writer::from_path(&fname).expect("create portstat log");

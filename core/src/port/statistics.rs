@@ -6,7 +6,6 @@ use std::ffi::CStr;
 use std::mem;
 
 use anyhow::{bail, Result};
-use colored::*;
 use tabled::{builder::Builder, Style, Table, TableIteratorExt, row, Concat, Panel, Disable, object::FirstRow};
 
 /// Collects extended statistics
