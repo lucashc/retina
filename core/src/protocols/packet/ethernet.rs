@@ -49,6 +49,18 @@ impl<'a> Ethernet<'a> {
     pub fn ether_type(&self) -> u16 {
         self.next_header().unwrap_or(0) as u16
     }
+
+    /// Get list of all VLAN IDs
+    #[inline]
+    pub fn vlan_ids(&self) -> Vec<u16> {
+        self.vlan_headers.iter().map(|elem| elem.get_vlan_id()).collect()
+    }
+
+    /// Get last VLAN ID
+    #[inline]
+    pub fn get_last_vlan_id(&self) -> Option<u16> {
+        self.vlan_headers.last().map(|elem| elem.get_vlan_id())
+    }
 }
 
 impl<'a> Packet<'a> for Ethernet<'a> {
@@ -126,6 +138,12 @@ impl PacketHeader for EthernetHeader {
 pub struct VlanHeader {
     tci: u16be,
     ether_type: u16be
+}
+
+impl VlanHeader {
+    fn get_vlan_id(&self) -> u16{
+        u16::from(self.tci) & 0x0FFF
+    }
 }
 
 impl PacketHeader for VlanHeader {
