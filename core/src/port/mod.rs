@@ -289,7 +289,7 @@ impl Port {
             // Using testpmd, found out what can be hashed on
             // port_conf.rx_adv_conf.rss_conf.rss_hf =
             //     (dpdk::ETH_RSS_IP | dpdk::ETH_RSS_TCP | dpdk::ETH_RSS_UDP) as u64;
-            port_conf.rx_adv_conf.rss_conf.rss_hf = 0x17f83fffc;
+            port_conf.rx_adv_conf.rss_conf.rss_hf = 0x3afbc;
 
         }
 
