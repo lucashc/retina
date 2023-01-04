@@ -116,7 +116,7 @@ impl L4Context {
 }
 
 
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Flow(Option<u16>, SocketAddr, SocketAddr, usize);
 
 
