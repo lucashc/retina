@@ -283,16 +283,21 @@ impl Port {
         // turn on RSS
         if dev_info.flow_type_rss_offloads != 0 {
             port_conf.rxmode.mq_mode = dpdk::rte_eth_rx_mq_mode_ETH_MQ_RX_RSS;
-            port_conf.rx_adv_conf.rss_conf.rss_key = SYMMETRIC_RSS_KEY.as_ptr() as *mut u8;
-            port_conf.rx_adv_conf.rss_conf.rss_key_len = RSS_KEY_LEN as u8;
-            port_conf.rx_adv_conf.rss_conf.rss_hf =
-                (dpdk::ETH_RSS_IP | dpdk::ETH_RSS_TCP | dpdk::ETH_RSS_UDP) as u64;
+            // TODO: Investigate effect of RSS
+            // port_conf.rx_adv_conf.rss_conf.rss_key = SYMMETRIC_RSS_KEY.as_ptr() as *mut u8;
+            // port_conf.rx_adv_conf.rss_conf.rss_key_len = RSS_KEY_LEN as u8;
+            // Using testpmd, found out what can be hashed on
+            // port_conf.rx_adv_conf.rss_conf.rss_hf =
+            //     (dpdk::ETH_RSS_IP | dpdk::ETH_RSS_TCP | dpdk::ETH_RSS_UDP) as u64;
+            port_conf.rx_adv_conf.rss_conf.rss_hf = 0x17f83fffc;
+
         }
 
         let max_rx_pkt_len = mtu_to_max_frame_len(mtu as u32);
         port_conf.rxmode.max_rx_pkt_len = cmp::max(dpdk::RTE_ETHER_MAX_LEN, max_rx_pkt_len);
 
         // turns on VLAN stripping if supported
+        // TODO: Should probably disable this!
         if dev_info.rx_offload_capa & dpdk::DEV_RX_OFFLOAD_VLAN_STRIP as u64 != 0 {
             port_conf.rxmode.offloads |= dpdk::DEV_RX_OFFLOAD_VLAN_STRIP as u64;
         }
