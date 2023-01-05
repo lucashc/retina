@@ -8,7 +8,7 @@
 pub mod zc_frame;
 pub use self::zc_frame::ZcFrame;
 
-use crate::memory::mbuf::Mbuf;
+use crate::{memory::mbuf::Mbuf, filter::FilterCtx};
 
 #[cfg(feature = "timing")]
 use crate::timing::timer::Timers;
@@ -30,7 +30,8 @@ pub struct Subscription<'a, S>
 where
     S: Subscribable,
 {
-    callback: Box<dyn Fn(S) + 'a>,
+    callback: Box<dyn Fn(S, &FilterCtx) + 'a>,
+    filter_ctx: FilterCtx,
     #[cfg(feature = "timing")]
     pub(crate) timers: Timers,
 }
@@ -40,9 +41,10 @@ where
     S: Subscribable,
 {
     /// Creates a new subscription from a filter and a callback.
-    pub(crate) fn new(cb: impl Fn(S) + 'a) -> Self {
+    pub(crate) fn new(cb: impl Fn(S, &FilterCtx) + 'a, filter_ctx: &FilterCtx) -> Self {
         Subscription {
             callback: Box::new(cb),
+            filter_ctx: filter_ctx.clone(),
             #[cfg(feature = "timing")]
             timers: Timers::new(),
         }
@@ -51,7 +53,7 @@ where
     /// Invoke the callback on `S`.
     pub(crate) fn invoke(&self, obj: S) {
         tsc_start!(t0);
-        (self.callback)(obj);
+        (self.callback)(obj, &self.filter_ctx);
         tsc_record!(self.timers, "callback", t0);
     }
 }

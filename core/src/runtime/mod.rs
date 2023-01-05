@@ -8,6 +8,7 @@ use self::online::*;
 
 use crate::config::*;
 use crate::dpdk;
+use crate::filter::FilterCtx;
 use crate::lcore::SocketId;
 use crate::memory::mempool::Mempool;
 use crate::subscription::*;
@@ -52,9 +53,10 @@ where
     /// ```
     pub fn new(
         config: RuntimeConfig,
-        cb: impl Fn(S) + 'a,
+        cb: impl Fn(S, &FilterCtx) + 'a,
+        filter_ctx: &FilterCtx
     ) -> Result<Self> {
-        let subscription = Arc::new(Subscription::new(cb));
+        let subscription = Arc::new(Subscription::new(cb, filter_ctx));
 
         println!("Initializing Retina runtime...");
         log::info!("Initializing EAL...");

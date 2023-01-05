@@ -55,6 +55,7 @@ pub mod protocols;
 mod runtime;
 pub mod subscription;
 pub mod utils;
+pub mod filter;
 pub use self::memory::mbuf::Mbuf;
 pub use self::runtime::Runtime;
 
