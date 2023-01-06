@@ -6,12 +6,11 @@ use std::time::{Instant, Duration};
 use regex::bytes::RegexSet;
 
 
-
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct FilterCtx {
     flows: Arc<DashMap<Flow, Instant>>,
     timeout: Arc<Duration>,
-    regexes: Arc<RwLock<RegexSet>>
+    regexes: RwLock<RegexSet>
 }
 
 impl FilterCtx {
@@ -19,7 +18,7 @@ impl FilterCtx {
         FilterCtx {
             flows: Arc::new(DashMap::with_capacity(reserve_capacity)),
             timeout: Arc::new(timeout),
-            regexes: Arc::new(RwLock::new(regexes))
+            regexes: RwLock::new(regexes)
         }
     }
 
@@ -46,4 +45,14 @@ impl FilterCtx {
         self.regexes.read().unwrap().is_match(payload)
     }
     
+}
+
+impl Clone for FilterCtx {
+    fn clone(&self) -> Self {
+        Self { 
+            flows: self.flows.clone(), 
+            timeout: self.timeout.clone(), 
+            regexes: RwLock::new(self.regexes.read().unwrap().clone())
+        }
+    }
 }

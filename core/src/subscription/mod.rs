@@ -6,6 +6,7 @@
 //! be customized within the framework to provide additional data to the callback if needed.
 
 pub mod zc_frame;
+
 pub use self::zc_frame::ZcFrame;
 
 use crate::{memory::mbuf::Mbuf, filter::FilterCtx};
@@ -19,6 +20,7 @@ pub trait Subscribable {
     /// Process a single incoming packet.
     fn process_packet(
         mbuf: Mbuf,
+        filter_ctx: &FilterCtx,
         subscription: &Subscription<Self>
     ) where
         Self: Sized;
@@ -31,7 +33,6 @@ where
     S: Subscribable,
 {
     callback: Box<dyn Fn(S, &FilterCtx) + 'a>,
-    filter_ctx: FilterCtx,
     #[cfg(feature = "timing")]
     pub(crate) timers: Timers,
 }
@@ -41,19 +42,18 @@ where
     S: Subscribable,
 {
     /// Creates a new subscription from a filter and a callback.
-    pub(crate) fn new(cb: impl Fn(S, &FilterCtx) + 'a, filter_ctx: &FilterCtx) -> Self {
+    pub(crate) fn new(cb: impl Fn(S, &FilterCtx) + 'a) -> Self {
         Subscription {
             callback: Box::new(cb),
-            filter_ctx: filter_ctx.clone(),
             #[cfg(feature = "timing")]
             timers: Timers::new(),
         }
     }
 
     /// Invoke the callback on `S`.
-    pub(crate) fn invoke(&self, obj: S) {
+    pub(crate) fn invoke(&self, obj: S, filter_ctx: &FilterCtx) {
         tsc_start!(t0);
-        (self.callback)(obj, &self.filter_ctx);
+        (self.callback)(obj, filter_ctx);
         tsc_record!(self.timers, "callback", t0);
     }
 }

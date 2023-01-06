@@ -6,6 +6,7 @@ use crate::lcore::{CoreId, SocketId};
 use crate::memory::mempool::Mempool;
 use crate::port::*;
 use crate::subscription::*;
+use crate::filter::FilterCtx;
 
 use std::collections::BTreeMap;
 use std::os::raw::{c_uint, c_void};
@@ -32,6 +33,7 @@ where
         options: OnlineOptions,
         mempools: &mut BTreeMap<SocketId, Mempool>,
         subscription: Arc<Subscription<'a, S>>,
+        filter_ctx: &FilterCtx
     ) -> Self {
         // Set up signal handler
         let is_running = Arc::new(AtomicBool::new(true));
@@ -83,6 +85,7 @@ where
                 core_id,
                 rxqueues,
                 Arc::clone(&subscription),
+                filter_ctx,
                 Arc::clone(&is_running),
             );
             rx_cores.insert(core_id, rx_core);

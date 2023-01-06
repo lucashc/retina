@@ -26,6 +26,7 @@
 //!     // runtime dropped at end of scope
 //! }
 //! ```
+use crate::filter::FilterCtx;
 use crate::memory::mbuf::Mbuf;
 use crate::subscription::{Subscribable, Subscription};
 
@@ -51,8 +52,9 @@ impl Subscribable for ZcFrame {
 
     fn process_packet(
         mbuf: Mbuf,
+        filter_ctx: &FilterCtx,
         subscription: &Subscription<Self>,
     ) {
-        subscription.invoke(mbuf);
+        subscription.invoke(mbuf, filter_ctx);
     }
 }

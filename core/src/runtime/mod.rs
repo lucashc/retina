@@ -56,7 +56,7 @@ where
         cb: impl Fn(S, &FilterCtx) + 'a,
         filter_ctx: &FilterCtx
     ) -> Result<Self> {
-        let subscription = Arc::new(Subscription::new(cb, filter_ctx));
+        let subscription = Arc::new(Subscription::new(cb));
 
         println!("Initializing Retina runtime...");
         log::info!("Initializing EAL...");
@@ -103,6 +103,7 @@ where
                 online_opts,
                 &mut mempools,
                 Arc::clone(&subscription),
+                filter_ctx
             )
         });
 

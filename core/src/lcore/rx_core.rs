@@ -1,5 +1,6 @@
 use super::CoreId;
 use crate::dpdk;
+use crate::filter::FilterCtx;
 use crate::memory::mbuf::Mbuf;
 use crate::port::{RxQueue, RxQueueType};
 use crate::subscription::*;
@@ -18,6 +19,7 @@ where
     pub(crate) id: CoreId,
     pub(crate) rxqueues: Vec<RxQueue>,
     pub(crate) subscription: Arc<Subscription<'a, S>>,
+    pub(crate) filter_ctx: FilterCtx,
     pub(crate) is_running: Arc<AtomicBool>,
 }
 
@@ -29,12 +31,14 @@ where
         core_id: CoreId,
         rxqueues: Vec<RxQueue>,
         subscription: Arc<Subscription<'a, S>>,
+        filter_ctx: &FilterCtx,
         is_running: Arc<AtomicBool>,
     ) -> Self {
         RxCore {
             id: core_id,
             rxqueues,
             subscription,
+            filter_ctx: filter_ctx.clone(),
             is_running,
         }
     }
@@ -91,7 +95,7 @@ where
                     );
                     nb_pkts += 1;
                     nb_bytes += mbuf.data_len() as u64;
-                    S::process_packet(mbuf, &self.subscription);
+                    S::process_packet(mbuf, &self.filter_ctx, &self.subscription);
                 }
             }
         }
