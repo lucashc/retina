@@ -28,6 +28,9 @@ pub struct Mbuf {
     raw: NonNull<dpdk::rte_mbuf>,
 }
 
+/// Implementation of Send, possibly very unsafe
+unsafe impl Send for Mbuf {}
+
 impl Mbuf {
     /// Creates a new Mbuf from rte_mbuf raw pointer. `mbuf` must be non-null.
     pub(crate) fn new_unchecked(mbuf: *mut dpdk::rte_mbuf) -> Mbuf {
