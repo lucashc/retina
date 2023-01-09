@@ -298,9 +298,9 @@ impl Port {
 
         // turns on VLAN stripping if supported
         // TODO: Should probably disable this!
-        if dev_info.rx_offload_capa & dpdk::DEV_RX_OFFLOAD_VLAN_STRIP as u64 != 0 {
-            port_conf.rxmode.offloads |= dpdk::DEV_RX_OFFLOAD_VLAN_STRIP as u64;
-        }
+        // if dev_info.rx_offload_capa & dpdk::DEV_RX_OFFLOAD_VLAN_STRIP as u64 != 0 {
+        //     port_conf.rxmode.offloads |= dpdk::DEV_RX_OFFLOAD_VLAN_STRIP as u64;
+        // }
 
         {
             let nb_queues = self.queue_map.len() as u16;
