@@ -29,7 +29,7 @@ where
 {
     #[allow(dead_code)]
     mempools: BTreeMap<SocketId, Mempool>,
-    online: Option<OnlineRuntime<'a, S>>,
+    online: OnlineRuntime<'a, S>,
     #[cfg(feature = "timing")]
     subscription: Arc<Subscription<'a, S>>,
 }
@@ -105,7 +105,7 @@ where
                 Arc::clone(&subscription),
                 filter_ctx
             )
-        });
+        }).unwrap();
 
         log::info!("Runtime ready.");
         Ok(Runtime {
@@ -124,16 +124,16 @@ where
     /// runtime.run();
     /// ```
     pub fn run(&mut self) {
-        if let Some(online) = &mut self.online {
-            online.run();
-        } else {
-            log::error!("No runtime");
-        }
+        self.online.run();
         #[cfg(feature = "timing")]
         {
             self.subscription.timers.display_stats();
             self.subscription.timers.dump_stats();
         }
         log::info!("Done.");
+    }
+
+    pub fn get_filter_ctxs_ref(&self) -> Vec<&FilterCtx> {
+        self.online.rx_cores.values().map(|core| &core.filter_ctx).collect()
     }
 }

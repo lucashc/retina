@@ -19,7 +19,7 @@ where
     S: Subscribable,
 {
     ports: BTreeMap<PortId, Port>,
-    rx_cores: BTreeMap<CoreId, RxCore<'a, S>>,
+    pub(crate) rx_cores: BTreeMap<CoreId, RxCore<'a, S>>,
     monitor: Monitor,
     options: OnlineOptions,
 }
