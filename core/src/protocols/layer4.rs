@@ -136,3 +136,15 @@ impl fmt::Display for Flow {
         write!(f, "{table}")
     }
 }
+
+impl Flow {
+    pub fn to_filename(&self) -> String {
+        let vlan = if let Some(vlan) = self.0 {
+            vlan.to_string()
+        } else {
+            String::from("None")
+        };
+        
+        format!("flow_{}_{}_{}_{}.pkt", vlan, self.1, self.2, self.3)
+    }
+}

@@ -1,24 +1,32 @@
 use dashmap::DashMap;
 
 use crate::protocols::layer4::Flow;
+use crate::subscription::ZcFrame;
+use std::sync::mpsc::Sender;
 use std::sync::{Arc, RwLock};
 use std::time::{Instant, Duration};
 use regex::bytes::RegexSet;
 
-
+/// Filter Context of which each core receives a local copy via a clone
 #[derive(Debug)]
 pub struct FilterCtx {
+    /// Shared amongst all cores
     flows: Arc<DashMap<Flow, Instant>>,
+    /// Shared amongst all cores
     timeout: Arc<Duration>,
-    regexes: RwLock<RegexSet>
+    /// Every core has local copy to prevent expensive locks
+    regexes: RwLock<RegexSet>,
+    /// Packet sender channel
+    sender: Sender<(Flow, ZcFrame)>
 }
 
 impl FilterCtx {
-    pub fn new(reserve_capacity: usize, timeout: Duration, regexes: RegexSet) -> FilterCtx {
+    pub fn new(reserve_capacity: usize, timeout: Duration, regexes: RegexSet, sender: Sender<(Flow, ZcFrame)>) -> FilterCtx {
         FilterCtx {
             flows: Arc::new(DashMap::with_capacity(reserve_capacity)),
             timeout: Arc::new(timeout),
-            regexes: RwLock::new(regexes)
+            regexes: RwLock::new(regexes),
+            sender
         }
     }
 
@@ -44,6 +52,10 @@ impl FilterCtx {
     pub fn check_match(&self, payload: &[u8]) -> bool{
         self.regexes.read().unwrap().is_match(payload)
     }
+
+    pub fn send_packet(&self, flow: &Flow, packet: ZcFrame) {
+        self.sender.send((flow.clone(), packet)).unwrap();
+    }
     
 }
 
@@ -52,7 +64,8 @@ impl Clone for FilterCtx {
         Self { 
             flows: self.flows.clone(), 
             timeout: self.timeout.clone(), 
-            regexes: RwLock::new(self.regexes.read().unwrap().clone())
+            regexes: RwLock::new(self.regexes.read().unwrap().clone()),
+            sender: self.sender.clone()
         }
     }
 }

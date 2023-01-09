@@ -56,6 +56,7 @@ mod runtime;
 pub mod subscription;
 pub mod utils;
 pub mod filter;
+pub mod packet_store;
 pub use self::memory::mbuf::Mbuf;
 pub use self::runtime::Runtime;
 
