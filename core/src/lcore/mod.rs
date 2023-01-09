@@ -2,6 +2,8 @@ pub(crate) mod monitor;
 // pub(crate) mod ring;
 pub(crate) mod rx_core;
 
+pub(crate) mod ring;
+
 use crate::dpdk;
 
 use std::fmt;
