@@ -95,6 +95,7 @@ pub(crate) enum MempoolError {
     #[error("Mempool {0} creation failed")]
     Create(String),
 
+    #[allow(dead_code)]
     #[error("Mbuf allocation failed: mempool exhausted.")]
     Exhausted,
 }

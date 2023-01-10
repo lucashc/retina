@@ -21,6 +21,7 @@ where
     ports: BTreeMap<PortId, Port>,
     pub(crate) rx_cores: BTreeMap<CoreId, RxCore<'a, S>>,
     monitor: Monitor,
+    #[allow(dead_code)]
     options: OnlineOptions,
 }
 

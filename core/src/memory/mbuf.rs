@@ -28,7 +28,9 @@ pub struct Mbuf {
     raw: NonNull<dpdk::rte_mbuf>,
 }
 
-/// Implementation of Send, possibly very unsafe
+/// Tell compiler to allow `Send` on `Mbuf` objects.
+/// When an object is moved to another thread its deallocation is postponed and handled by the other thread.
+/// This is in contrast with `Sync`, which allows two threads to simultaneously operate on an object.
 unsafe impl Send for Mbuf {}
 
 impl Mbuf {
@@ -42,6 +44,7 @@ impl Mbuf {
     }
 
     /// Creates a new Mbuf from rte_mbuf raw pointer.
+    #[allow(dead_code)]
     pub(crate) fn new(mbuf: *mut dpdk::rte_mbuf) -> Result<Mbuf> {
         Ok(Mbuf {
             raw: NonNull::new(mbuf).ok_or(MempoolError::Exhausted)?,
@@ -49,6 +52,7 @@ impl Mbuf {
     }
 
     /// Creates a new Mbuf from a byte slice.
+    #[allow(dead_code)]
     pub(crate) fn from_bytes(data: &[u8], mp: *mut dpdk::rte_mempool) -> Result<Mbuf> {
         let mut mbuf = unsafe { Mbuf::new(dpdk::rte_pktmbuf_alloc(mp))? };
         if data.len() <= mbuf.raw().buf_len.into() {
@@ -71,6 +75,7 @@ impl Mbuf {
     }
 
     /// Returns a mutable reference to the inner rte_mbuf.
+    #[allow(dead_code)]
     fn raw_mut(&mut self) -> &mut dpdk::rte_mbuf {
         unsafe { self.raw.as_mut() }
     }
@@ -214,6 +219,7 @@ pub(crate) enum MbufError {
     #[error("Data read exceeds Mbuf segment buffer")]
     ReadPastBuffer,
 
+    #[allow(dead_code)]
     #[error("Data write exceeds Mbuf segment buffer")]
     WritePastBuffer,
 }
