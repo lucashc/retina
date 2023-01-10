@@ -15,9 +15,10 @@ use crate::subscription::*;
 
 use std::collections::BTreeMap;
 use std::ffi::CString;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use anyhow::{bail, Result};
+use regex::bytes::RegexSet;
 
 /// The Retina runtime.
 ///
@@ -133,7 +134,7 @@ where
         log::info!("Done.");
     }
 
-    pub fn get_filter_ctxs_ref(&self) -> Vec<&FilterCtx> {
-        self.online.rx_cores.values().map(|core| &core.filter_ctx).collect()
+    pub fn get_regexes_from_cores(&self) -> Vec<Arc<RwLock<RegexSet>>> {
+        self.online.rx_cores.values().map(|core| core.filter_ctx.regexes.clone()).collect()
     }
 }

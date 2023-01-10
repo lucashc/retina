@@ -15,17 +15,19 @@ pub struct FilterCtx {
     /// Shared amongst all cores
     timeout: Duration,
     /// Every core has local copy to prevent expensive locks
-    regexes: RwLock<RegexSet>,
+    /// We use an Arc here only to allow `Send` to the daemon thread
+    /// The `Clone` trait implementation makes an explicit clone of the RegexSet.
+    pub(crate) regexes: Arc<RwLock<RegexSet>>,
     /// Packet sender channel
     sender: Sender<(Flow, ZcFrame)>
 }
 
 impl FilterCtx {
-    pub fn new(reserve_capacity: usize, timeout: Duration, regexes: RegexSet, sender: Sender<(Flow, ZcFrame)>) -> FilterCtx {
+    pub fn new(reserve_capacity: usize, timeout: Duration, sender: Sender<(Flow, ZcFrame)>) -> FilterCtx {
         FilterCtx {
             flows: Arc::new(DashMap::with_capacity(reserve_capacity)),
             timeout,
-            regexes: RwLock::new(regexes),
+            regexes: Arc::new(RwLock::new(RegexSet::empty())),
             sender
         }
     }
@@ -64,7 +66,7 @@ impl Clone for FilterCtx {
         Self { 
             flows: self.flows.clone(), 
             timeout: self.timeout.clone(), 
-            regexes: RwLock::new(self.regexes.read().unwrap().clone()),
+            regexes: Arc::new(RwLock::new(self.regexes.read().unwrap().clone())),
             sender: self.sender.clone()
         }
     }
