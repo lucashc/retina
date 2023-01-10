@@ -13,7 +13,7 @@ pub struct FilterCtx {
     /// Shared amongst all cores
     flows: Arc<DashMap<Flow, Instant>>,
     /// Shared amongst all cores
-    timeout: Arc<Duration>,
+    timeout: Duration,
     /// Every core has local copy to prevent expensive locks
     regexes: RwLock<RegexSet>,
     /// Packet sender channel
@@ -24,7 +24,7 @@ impl FilterCtx {
     pub fn new(reserve_capacity: usize, timeout: Duration, regexes: RegexSet, sender: Sender<(Flow, ZcFrame)>) -> FilterCtx {
         FilterCtx {
             flows: Arc::new(DashMap::with_capacity(reserve_capacity)),
-            timeout: Arc::new(timeout),
+            timeout,
             regexes: RwLock::new(regexes),
             sender
         }
@@ -46,7 +46,7 @@ impl FilterCtx {
     }
 
     pub fn prune_flows(&self) {
-        self.flows.retain(|_, timestamp| timestamp.elapsed() < *self.timeout);
+        self.flows.retain(|_, timestamp| timestamp.elapsed() < self.timeout);
     }
 
     pub fn check_match(&self, payload: &[u8]) -> bool{
