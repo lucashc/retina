@@ -55,7 +55,8 @@ where
     pub fn new(
         config: RuntimeConfig,
         cb: impl Fn(S, &FilterCtx) + 'a,
-        filter_ctx: &FilterCtx
+        filter_ctx: &FilterCtx,
+        exit_callback: Arc<impl Fn() + Send + Sync + 'static>
     ) -> Result<Self> {
         let subscription = Arc::new(Subscription::new(cb));
 
@@ -104,7 +105,8 @@ where
                 online_opts,
                 &mut mempools,
                 Arc::clone(&subscription),
-                filter_ctx
+                filter_ctx,
+                exit_callback
             )
         }).unwrap();
 

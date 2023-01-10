@@ -34,13 +34,16 @@ where
         options: OnlineOptions,
         mempools: &mut BTreeMap<SocketId, Mempool>,
         subscription: Arc<Subscription<'a, S>>,
-        filter_ctx: &FilterCtx
+        filter_ctx: &FilterCtx,
+        exit_callback: Arc<impl Fn() + Send + Sync + 'static>
     ) -> Self {
         // Set up signal handler
         let is_running = Arc::new(AtomicBool::new(true));
         let r = Arc::clone(&is_running);
+        let exit_callback_copy = Arc::clone(&exit_callback);
         ctrlc::set_handler(move || {
             r.store(false, Ordering::Relaxed);
+            (exit_callback_copy)();
         })
         .expect("Error setting Ctrl-C handler");
 
