@@ -1,14 +1,14 @@
 use crate::protocols::packet::ethernet::Ethernet;
-use crate::protocols::packet::{ipv4::Ipv4, ipv6::Ipv6};
 use crate::protocols::packet::tcp::{Tcp, TCP_PROTOCOL};
 use crate::protocols::packet::udp::{Udp, UDP_PROTOCOL};
 use crate::protocols::packet::Packet;
+use crate::protocols::packet::{ipv4::Ipv4, ipv6::Ipv6};
 use crate::subscription::ZcFrame;
 
 use anyhow::{bail, Result};
 
-use tabled::{Style, Panel};
 use tabled::builder::Builder;
+use tabled::{Panel, Style};
 
 use std::cmp;
 use std::fmt;
@@ -28,7 +28,7 @@ pub struct L4Context {
     /// Length of the payload in bytes.
     pub length: usize,
     /// VLAN id
-    pub vlan_id: Option<u16>
+    pub vlan_id: Option<u16>,
 }
 
 impl L4Context {
@@ -45,7 +45,7 @@ impl L4Context {
                             proto: TCP_PROTOCOL,
                             offset: tcp.next_header_offset(),
                             length: payload_size,
-                            vlan_id: eth.get_last_vlan_id()
+                            vlan_id: eth.get_last_vlan_id(),
                         })
                     } else {
                         bail!("Malformed Packet");
@@ -60,7 +60,7 @@ impl L4Context {
                             proto: UDP_PROTOCOL,
                             offset: udp.next_header_offset(),
                             length: payload_size,
-                            vlan_id: eth.get_last_vlan_id()
+                            vlan_id: eth.get_last_vlan_id(),
                         })
                     } else {
                         bail!("Malformed Packet");
@@ -79,7 +79,7 @@ impl L4Context {
                             proto: TCP_PROTOCOL,
                             offset: tcp.next_header_offset(),
                             length: payload_size,
-                            vlan_id: eth.get_last_vlan_id()
+                            vlan_id: eth.get_last_vlan_id(),
                         })
                     } else {
                         bail!("Malformed Packet");
@@ -94,7 +94,7 @@ impl L4Context {
                             proto: UDP_PROTOCOL,
                             offset: udp.next_header_offset(),
                             length: payload_size,
-                            vlan_id: eth.get_last_vlan_id()
+                            vlan_id: eth.get_last_vlan_id(),
                         })
                     } else {
                         bail!("Malformed Packet");
@@ -111,14 +111,17 @@ impl L4Context {
     }
 
     pub fn get_flow(&self) -> Flow {
-        Flow(self.vlan_id, cmp::max(self.src, self.dst), cmp::min(self.src, self.dst), self.proto)
+        Flow(
+            self.vlan_id,
+            cmp::max(self.src, self.dst),
+            cmp::min(self.src, self.dst),
+            self.proto,
+        )
     }
 }
 
-
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Flow(Option<u16>, SocketAddr, SocketAddr, usize);
-
 
 impl fmt::Display for Flow {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -127,9 +130,14 @@ impl fmt::Display for Flow {
         let protocol = match self.3 {
             TCP_PROTOCOL => "TCP",
             UDP_PROTOCOL => "UDP",
-            _ => "UNKOWN"
+            _ => "UNKOWN",
         };
-        builder.add_record([format!("{:?}", self.0), self.1.to_string(), self.2.to_string(), protocol.into()]);
+        builder.add_record([
+            format!("{:?}", self.0),
+            self.1.to_string(),
+            self.2.to_string(),
+            protocol.into(),
+        ]);
         let mut table = builder.build();
         table.with(Style::modern());
         table.with(Panel::header("Flow"));
@@ -144,7 +152,7 @@ impl Flow {
         } else {
             String::from("None")
         };
-        
+
         format!("flow_{}_{}_{}_{}.pkt", vlan, self.1, self.2, self.3)
     }
 }

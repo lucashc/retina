@@ -2,10 +2,10 @@ use dashmap::DashMap;
 
 use crate::protocols::layer4::Flow;
 use crate::subscription::ZcFrame;
+use regex::bytes::RegexSet;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, RwLock};
-use std::time::{Instant, Duration};
-use regex::bytes::RegexSet;
+use std::time::{Duration, Instant};
 
 /// Filter Context of which each core receives a local copy via a clone
 #[derive(Debug)]
@@ -19,16 +19,20 @@ pub struct FilterCtx {
     /// The `Clone` trait implementation makes an explicit clone of the RegexSet.
     pub(crate) regexes: Arc<RwLock<RegexSet>>,
     /// Packet sender channel
-    sender: Sender<(Flow, ZcFrame)>
+    sender: Sender<(Flow, ZcFrame)>,
 }
 
 impl FilterCtx {
-    pub fn new(reserve_capacity: usize, timeout: Duration, sender: Sender<(Flow, ZcFrame)>) -> FilterCtx {
+    pub fn new(
+        reserve_capacity: usize,
+        timeout: Duration,
+        sender: Sender<(Flow, ZcFrame)>,
+    ) -> FilterCtx {
         FilterCtx {
             flows: Arc::new(DashMap::with_capacity(reserve_capacity)),
             timeout,
             regexes: Arc::new(RwLock::new(RegexSet::empty())),
-            sender
+            sender,
         }
     }
 
@@ -38,8 +42,8 @@ impl FilterCtx {
             Some(mut timestamp) => {
                 *timestamp = Instant::now();
                 true
-            },
-            None => false
+            }
+            None => false,
         }
     }
 
@@ -48,26 +52,26 @@ impl FilterCtx {
     }
 
     pub fn prune_flows(&self) {
-        self.flows.retain(|_, timestamp| timestamp.elapsed() < self.timeout);
+        self.flows
+            .retain(|_, timestamp| timestamp.elapsed() < self.timeout);
     }
 
-    pub fn check_match(&self, payload: &[u8]) -> bool{
+    pub fn check_match(&self, payload: &[u8]) -> bool {
         self.regexes.read().unwrap().is_match(payload)
     }
 
     pub fn send_packet(&self, flow: &Flow, packet: ZcFrame) {
         self.sender.send((flow.clone(), packet)).unwrap();
     }
-    
 }
 
 impl Clone for FilterCtx {
     fn clone(&self) -> Self {
-        Self { 
-            flows: self.flows.clone(), 
-            timeout: self.timeout.clone(), 
+        Self {
+            flows: self.flows.clone(),
+            timeout: self.timeout.clone(),
             regexes: Arc::new(RwLock::new(self.regexes.read().unwrap().clone())),
-            sender: self.sender.clone()
+            sender: self.sender.clone(),
         }
     }
 }

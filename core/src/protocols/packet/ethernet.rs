@@ -4,7 +4,7 @@ use crate::memory::mbuf::Mbuf;
 use crate::protocols::packet::{Packet, PacketHeader, PacketParseError};
 use crate::utils::types::*;
 
-use anyhow::{bail, Result, anyhow};
+use anyhow::{anyhow, bail, Result};
 use pnet::datalink::MacAddr;
 
 // Ethernet Header size
@@ -53,7 +53,10 @@ impl<'a> Ethernet<'a> {
     /// Get list of all VLAN IDs
     #[inline]
     pub fn vlan_ids(&self) -> Vec<u16> {
-        self.vlan_headers.iter().map(|elem| elem.get_vlan_id()).collect()
+        self.vlan_headers
+            .iter()
+            .map(|elem| elem.get_vlan_id())
+            .collect()
     }
 
     /// Get last VLAN ID
@@ -69,7 +72,11 @@ impl<'a> Packet<'a> for Ethernet<'a> {
     }
 
     fn header_len(&self) -> usize {
-        self.header.length() + self.vlan_headers.iter().fold(0, |sum, val: &VlanHeader| sum + val.length())
+        self.header.length()
+            + self
+                .vlan_headers
+                .iter()
+                .fold(0, |sum, val: &VlanHeader| sum + val.length())
     }
 
     fn next_header_offset(&self) -> usize {
@@ -95,7 +102,10 @@ impl<'a> Packet<'a> for Ethernet<'a> {
                 let mut vlans = vec![];
                 let mut offset = current_header.length();
                 loop {
-                    let next: *const VlanHeader = outer.mbuf().get_data(offset).map_err(|_| anyhow!(PacketParseError::InvalidRead))?;
+                    let next: *const VlanHeader = outer
+                        .mbuf()
+                        .get_data(offset)
+                        .map_err(|_| anyhow!(PacketParseError::InvalidRead))?;
                     vlans.push(unsafe { *next });
                     if u16::from(vlans.last().unwrap().ether_type) as usize == VLAN_802_1Q {
                         offset += vlans.last().unwrap().length();
@@ -137,11 +147,11 @@ impl PacketHeader for EthernetHeader {
 #[repr(C, packed)]
 pub struct VlanHeader {
     tci: u16be,
-    ether_type: u16be
+    ether_type: u16be,
 }
 
 impl VlanHeader {
-    fn get_vlan_id(&self) -> u16{
+    fn get_vlan_id(&self) -> u16 {
         u16::from(self.tci) & 0x0FFF
     }
 }

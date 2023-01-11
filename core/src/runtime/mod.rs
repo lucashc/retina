@@ -56,7 +56,7 @@ where
         config: RuntimeConfig,
         cb: impl Fn(S, &FilterCtx) + 'a,
         filter_ctx: &FilterCtx,
-        exit_callback: Arc<impl Fn() + Send + Sync + 'static>
+        exit_callback: Arc<impl Fn() + Send + Sync + 'static>,
     ) -> Result<Self> {
         let subscription = Arc::new(Subscription::new(cb));
 
@@ -95,20 +95,24 @@ where
             mempools.insert(socket_id, mempool);
         }
 
-        let online = config.online.as_ref().map(|cfg| {
-            log::info!("Initializing Online Runtime...");
-            let online_opts = OnlineOptions {
-                online: cfg.clone()
-            };
-            OnlineRuntime::new(
-                &config,
-                online_opts,
-                &mut mempools,
-                Arc::clone(&subscription),
-                filter_ctx,
-                exit_callback
-            )
-        }).unwrap();
+        let online = config
+            .online
+            .as_ref()
+            .map(|cfg| {
+                log::info!("Initializing Online Runtime...");
+                let online_opts = OnlineOptions {
+                    online: cfg.clone(),
+                };
+                OnlineRuntime::new(
+                    &config,
+                    online_opts,
+                    &mut mempools,
+                    Arc::clone(&subscription),
+                    filter_ctx,
+                    exit_callback,
+                )
+            })
+            .unwrap();
 
         log::info!("Runtime ready.");
         Ok(Runtime {
@@ -137,6 +141,10 @@ where
     }
 
     pub fn get_regexes_from_cores(&self) -> Vec<Arc<RwLock<RegexSet>>> {
-        self.online.rx_cores.values().map(|core| core.filter_ctx.regexes.clone()).collect()
+        self.online
+            .rx_cores
+            .values()
+            .map(|core| core.filter_ctx.regexes.clone())
+            .collect()
     }
 }

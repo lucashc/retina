@@ -9,20 +9,16 @@ pub mod zc_frame;
 
 pub use self::zc_frame::ZcFrame;
 
-use crate::{memory::mbuf::Mbuf, filter::FilterCtx};
+use crate::{filter::FilterCtx, memory::mbuf::Mbuf};
 
 #[cfg(feature = "timing")]
 use crate::timing::timer::Timers;
 
 /// Represents a generic subscribable type. All subscribable types must implement this trait.
 pub trait Subscribable {
-
     /// Process a single incoming packet.
-    fn process_packet(
-        mbuf: Mbuf,
-        filter_ctx: &FilterCtx,
-        subscription: &Subscription<Self>
-    ) where
+    fn process_packet(mbuf: Mbuf, filter_ctx: &FilterCtx, subscription: &Subscription<Self>)
+    where
         Self: Sized;
 }
 

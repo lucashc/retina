@@ -6,7 +6,9 @@ use std::ffi::CStr;
 use std::mem;
 
 use anyhow::{bail, Result};
-use tabled::{builder::Builder, Style, Table, TableIteratorExt, row, Concat, Panel, Disable, object::FirstRow};
+use tabled::{
+    builder::Builder, object::FirstRow, row, Concat, Disable, Panel, Style, Table, TableIteratorExt,
+};
 
 /// Collects extended statistics
 #[derive(Debug)]
@@ -76,7 +78,7 @@ impl PortStats {
         capture.with(Concat::vertical(out_of_buffer));
         capture.with(Concat::vertical(discard_rate));
         capture.with(Style::modern());
-        
+
         let mut builder_keywords = Builder::default();
         for (label, value) in self.stats.iter() {
             if keywords.iter().any(|k| label.contains(k)) {
@@ -98,7 +100,7 @@ impl PortStats {
     /// If there are hardware filters configured, then this value indicates that
     /// fraction of total traffic that was filtered by hardware and successfully
     /// delivered to the processing cores.
-    pub(super) fn display_capture_rate(&self) -> Table{
+    pub(super) fn display_capture_rate(&self) -> Table {
         let captured = self.stats.get("rx_good_packets");
         let total = self.stats.get("rx_phy_packets");
 

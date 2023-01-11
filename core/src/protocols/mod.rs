@@ -1,3 +1,3 @@
 //! Protocol parsing and manipulation.
-pub mod packet;
 pub mod layer4;
+pub mod packet;

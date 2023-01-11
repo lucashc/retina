@@ -1,12 +1,12 @@
 use crate::config::{OnlineConfig, RuntimeConfig};
 use crate::dpdk;
+use crate::filter::FilterCtx;
 use crate::lcore::monitor::Monitor;
 use crate::lcore::rx_core::RxCore;
 use crate::lcore::{CoreId, SocketId};
 use crate::memory::mempool::Mempool;
 use crate::port::*;
 use crate::subscription::*;
-use crate::filter::FilterCtx;
 
 use std::collections::BTreeMap;
 use std::os::raw::{c_uint, c_void};
@@ -35,7 +35,7 @@ where
         mempools: &mut BTreeMap<SocketId, Mempool>,
         subscription: Arc<Subscription<'a, S>>,
         filter_ctx: &FilterCtx,
-        exit_callback: Arc<impl Fn() + Send + Sync + 'static>
+        exit_callback: Arc<impl Fn() + Send + Sync + 'static>,
     ) -> Self {
         // Set up signal handler
         let is_running = Arc::new(AtomicBool::new(true));
@@ -160,7 +160,7 @@ where
 /// Read-only runtime options for the offline core
 #[derive(Debug)]
 pub(crate) struct OnlineOptions {
-    pub(crate) online: OnlineConfig
+    pub(crate) online: OnlineConfig,
 }
 
 extern "C" fn launch_rx<S>(arg: *mut c_void) -> i32

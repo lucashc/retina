@@ -16,9 +16,9 @@ use anyhow::{bail, Result};
 use chrono::Local;
 use crossbeam_channel::{tick, Receiver};
 use csv::Writer;
-use tabled::{Panel, col, row, Table};
-use tabled::{builder::Builder, Style};
 use serde::Serialize;
+use tabled::{builder::Builder, Style};
+use tabled::{col, row, Panel, Table};
 
 /// Preamble + Start Frame Delimiter
 const PSFD_SIZE: u64 = 8;
@@ -150,7 +150,10 @@ impl Monitor {
                                 let mut tmp_row = row![rates_table, dropped_table];
                                 tmp_row.with(Style::modern());
                                 let mut overall = col![mempool_table, tmp_row];
-                                overall.with(Panel::header(format!("Overall statistics\nCurrent time: {}s", (curr_ts - start_ts).as_secs())));
+                                overall.with(Panel::header(format!(
+                                    "Overall statistics\nCurrent time: {}s",
+                                    (curr_ts - start_ts).as_secs()
+                                )));
                                 overall.with(Style::modern());
                                 println!("{overall}");
                             }
@@ -404,23 +407,43 @@ impl AggRxStats {
     }
 
     /// Display live bits per second and packets per second between `curr_rx` and `prev_rx`
-    fn display_rates(curr_rx: AggRxStats, prev_rx: AggRxStats, nms: f64) -> Table{
+    fn display_rates(curr_rx: AggRxStats, prev_rx: AggRxStats, nms: f64) -> Table {
         let mut builder = Builder::default();
 
-        builder.add_record(["Ingress".into(), format!("{} bps / {} pps",
-            (curr_rx.ingress_bits - prev_rx.ingress_bits) as f64 / nms * 1000.0,
-            (curr_rx.ingress_pkts - prev_rx.ingress_pkts) as f64 / nms * 1000.0)]);
-        builder.add_record(["Good".into(), format!("{} bps / {} pps",
-            (curr_rx.good_bits - prev_rx.good_bits) as f64 / nms * 1000.0,
-            (curr_rx.good_pkts - prev_rx.good_pkts) as f64 / nms * 1000.0)]);
-        builder.add_record(["Process".into(), format!("{} bps / {} pps",
-            (curr_rx.process_bits - prev_rx.process_bits) as f64 / nms * 1000.0,
-            (curr_rx.process_pkts - prev_rx.process_pkts) as f64 / nms * 1000.0)]);
-        builder.add_record(["Drop".into(), format!("{} pps ({}%)",
-            (curr_rx.dropped_pkts() - prev_rx.dropped_pkts()) as f64 / nms * 1000.0,
-            100.0
-                * ((curr_rx.dropped_pkts() - prev_rx.dropped_pkts()) as f64
-                    / (curr_rx.ingress_pkts - prev_rx.ingress_pkts) as f64) )]);
+        builder.add_record([
+            "Ingress".into(),
+            format!(
+                "{} bps / {} pps",
+                (curr_rx.ingress_bits - prev_rx.ingress_bits) as f64 / nms * 1000.0,
+                (curr_rx.ingress_pkts - prev_rx.ingress_pkts) as f64 / nms * 1000.0
+            ),
+        ]);
+        builder.add_record([
+            "Good".into(),
+            format!(
+                "{} bps / {} pps",
+                (curr_rx.good_bits - prev_rx.good_bits) as f64 / nms * 1000.0,
+                (curr_rx.good_pkts - prev_rx.good_pkts) as f64 / nms * 1000.0
+            ),
+        ]);
+        builder.add_record([
+            "Process".into(),
+            format!(
+                "{} bps / {} pps",
+                (curr_rx.process_bits - prev_rx.process_bits) as f64 / nms * 1000.0,
+                (curr_rx.process_pkts - prev_rx.process_pkts) as f64 / nms * 1000.0
+            ),
+        ]);
+        builder.add_record([
+            "Drop".into(),
+            format!(
+                "{} pps ({}%)",
+                (curr_rx.dropped_pkts() - prev_rx.dropped_pkts()) as f64 / nms * 1000.0,
+                100.0
+                    * ((curr_rx.dropped_pkts() - prev_rx.dropped_pkts()) as f64
+                        / (curr_rx.ingress_pkts - prev_rx.ingress_pkts) as f64)
+            ),
+        ]);
         let mut table = builder.build();
         table.with(Panel::header("Current rates"));
         table.with(Style::modern());
@@ -429,21 +452,36 @@ impl AggRxStats {
 
     fn display_dropped(curr_rx: AggRxStats, init_rx: AggRxStats) -> Table {
         let mut builder = Builder::default();
-        builder.add_record(["HW Dropped".into(), format!("{} pkts ({}%)",
-            curr_rx.hw_dropped_pkts - init_rx.hw_dropped_pkts,
-            100.0
-                * ((curr_rx.hw_dropped_pkts - init_rx.hw_dropped_pkts) as f64
-                    / (curr_rx.ingress_pkts - init_rx.ingress_pkts) as f64) )]);
-        builder.add_record(["SW Dropped".into(), format!("{} pkts ({}%)",
-            curr_rx.sw_dropped_pkts - init_rx.sw_dropped_pkts,
-            100.0
-                * ((curr_rx.sw_dropped_pkts - init_rx.sw_dropped_pkts) as f64
-                    / (curr_rx.ingress_pkts - init_rx.ingress_pkts) as f64) )]);
-        builder.add_record(["Total Dropped".into(), format!("{} pkts ({}%)",
-            curr_rx.dropped_pkts() - init_rx.dropped_pkts(),
-            100.0
-                * ((curr_rx.dropped_pkts() - init_rx.dropped_pkts()) as f64
-                    / (curr_rx.ingress_pkts - init_rx.ingress_pkts) as f64) )]);
+        builder.add_record([
+            "HW Dropped".into(),
+            format!(
+                "{} pkts ({}%)",
+                curr_rx.hw_dropped_pkts - init_rx.hw_dropped_pkts,
+                100.0
+                    * ((curr_rx.hw_dropped_pkts - init_rx.hw_dropped_pkts) as f64
+                        / (curr_rx.ingress_pkts - init_rx.ingress_pkts) as f64)
+            ),
+        ]);
+        builder.add_record([
+            "SW Dropped".into(),
+            format!(
+                "{} pkts ({}%)",
+                curr_rx.sw_dropped_pkts - init_rx.sw_dropped_pkts,
+                100.0
+                    * ((curr_rx.sw_dropped_pkts - init_rx.sw_dropped_pkts) as f64
+                        / (curr_rx.ingress_pkts - init_rx.ingress_pkts) as f64)
+            ),
+        ]);
+        builder.add_record([
+            "Total Dropped".into(),
+            format!(
+                "{} pkts ({}%)",
+                curr_rx.dropped_pkts() - init_rx.dropped_pkts(),
+                100.0
+                    * ((curr_rx.dropped_pkts() - init_rx.dropped_pkts()) as f64
+                        / (curr_rx.ingress_pkts - init_rx.ingress_pkts) as f64)
+            ),
+        ]);
         let mut table = builder.build();
         table.with(Panel::header("Overall Drop"));
         table.with(Style::modern());

@@ -1,25 +1,21 @@
 use regex::bytes::RegexSet;
-use serde::{Serialize, Deserialize};
-use std::path::PathBuf;
+use serde::{Deserialize, Serialize};
 use std::os::unix::net::{UnixListener, UnixStream};
-use std::sync::{RwLock, Arc};
+use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 
 use serde_json::Deserializer;
 
-
-
-
-
 pub struct Rules {
     unix_socket: UnixListener,
-    regexsets_from_cores: Vec<Arc<RwLock<RegexSet>>>
+    regexsets_from_cores: Vec<Arc<RwLock<RegexSet>>>,
 }
 
 impl Rules {
     pub fn new(socket_path: PathBuf, regexsets_from_cores: Vec<Arc<RwLock<RegexSet>>>) -> Rules {
         Rules {
             unix_socket: UnixListener::bind(socket_path).unwrap(),
-            regexsets_from_cores
+            regexsets_from_cores,
         }
     }
 
@@ -29,7 +25,7 @@ impl Rules {
             match stream {
                 Ok(stream) => {
                     self.handle_connection(stream);
-                },
+                }
                 Err(err) => {
                     log::warn!("Rule daemon: Connection failed {:?}", err);
                 }
@@ -47,18 +43,17 @@ impl Rules {
                         Ok(new_regexset) => {
                             log::info!("Received proper rule set, doing update");
                             self.update_rules(new_regexset);
-                        },
+                        }
                         Err(err) => {
                             log::warn!("Rule daemon: Issue compiling regexes: {:?}", err);
                         }
                     }
-                },
+                }
                 Err(err) => {
                     log::warn!("Rule daemon: Invalid JSON read: {:?}", err);
                 }
             }
         }
-
     }
 
     fn update_rules(&self, new_regexset: RegexSet) {
@@ -71,5 +66,5 @@ impl Rules {
 
 #[derive(Serialize, Deserialize)]
 struct RuleFormat {
-    rules: Vec<String>
+    rules: Vec<String>,
 }

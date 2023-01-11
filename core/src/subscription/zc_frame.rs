@@ -30,8 +30,6 @@ use crate::filter::FilterCtx;
 use crate::memory::mbuf::Mbuf;
 use crate::subscription::{Subscribable, Subscription};
 
-
-
 /// A zero-copy Ethernet frame.
 ///
 /// ## Remarks
@@ -49,12 +47,7 @@ use crate::subscription::{Subscribable, Subscription};
 pub type ZcFrame = Mbuf;
 
 impl Subscribable for ZcFrame {
-
-    fn process_packet(
-        mbuf: Mbuf,
-        filter_ctx: &FilterCtx,
-        subscription: &Subscription<Self>,
-    ) {
+    fn process_packet(mbuf: Mbuf, filter_ctx: &FilterCtx, subscription: &Subscription<Self>) {
         subscription.invoke(mbuf, filter_ctx);
     }
 }

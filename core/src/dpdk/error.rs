@@ -2,13 +2,13 @@
 //! It uses the internal `rte_errno` variable to obtain the errorcode.
 //! After that, it returns the string representation of the error.
 use std::error::Error;
-use std::ffi::CStr;
 use std::ffi::c_int;
+use std::ffi::CStr;
 use std::fmt;
 use std::ptr::NonNull;
 
-use super::rte_strerror;
 use super::_rte_errno;
+use super::rte_strerror;
 
 ///
 #[derive(Debug)]
@@ -27,12 +27,7 @@ impl DPDKError {
 
     #[inline]
     pub fn get_error_message(errno: c_int) -> String {
-        unsafe {
-            CStr::from_ptr(rte_strerror(errno))
-                .to_str()
-                .unwrap()
-                .into()
-        }
+        unsafe { CStr::from_ptr(rte_strerror(errno)).to_str().unwrap().into() }
     }
 
     #[inline]
@@ -50,7 +45,6 @@ impl fmt::Display for DPDKError {
     }
 }
 
-
 pub(crate) trait IntoResult {
     type Ok;
 
@@ -62,7 +56,7 @@ impl IntoResult for c_int {
 
     #[inline]
     fn into_result(self) -> Result<Self::Ok, DPDKError> {
-        if self >= 0{
+        if self >= 0 {
             Ok(self as i32)
         } else {
             Err(DPDKError::new())
