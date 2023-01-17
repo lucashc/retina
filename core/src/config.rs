@@ -1,13 +1,11 @@
 //! Configuration options.
 //!
-//! While applications that use Retina are free to define their own command line arguments, Retina
+//! While applications that use Retina-regex are free to define their own command line arguments, Retina
 //! requires a separate configuration file that defines runtime options for CPU and memory usage,
 //! network interface(s), logging, protocol-specific items, and more. The path to the configuration
 //! file itself will typically be a command line argument passed to the application.
 //!
-//!  Retina can run in either "online" mode (reading packets from a live network interface) or
-//! "offline" mode (reading packets from a capture file). See
-//! [configs](https://github.com/stanford-esrg/retina/tree/main/configs) for examples.
+//!  By default Retina-regex runs in online mode. The original offline mode has been removed.
 
 use crate::lcore::{CoreId, SocketId};
 
@@ -22,27 +20,6 @@ pub fn load_config<P: AsRef<Path>>(path: P) -> RuntimeConfig {
     let config: RuntimeConfig = toml::from_str(&config_str).expect("Invalid config file");
 
     config
-}
-
-/// Loads a default configuration file.
-///
-/// For demonstration purposes only, not configured for performance. The default configuration
-/// assumes Retina is being run from the crate root in offline mode:
-/// ```toml
-/// main_core = 0
-///
-/// [mempool]
-///     capacity = 8192
-///
-/// [offline]
-///     pcap = "./traces/small_flows.pcap"
-///     mtu = 9702
-///
-/// [conntrack]
-///     max_connections = 100_000
-/// ```
-pub fn default_config() -> RuntimeConfig {
-    RuntimeConfig::default()
 }
 
 /* --------------------------------------------------------------------------------- */
@@ -69,7 +46,7 @@ pub struct RuntimeConfig {
     /// Per-mempool settings.
     pub mempool: MempoolConfig,
 
-    /// Online mode settings. Either `online` or `offline` must be specified.
+    /// Online mode settings.
     #[serde(default = "default_online")]
     pub online: Option<OnlineConfig>,
 
@@ -181,7 +158,7 @@ impl Default for RuntimeConfig {
 
 /// Memory pool options.
 ///
-/// Retina manages packet buffer memory using DPDK's pool-based memory allocator. This takes
+/// Retina-regex manages packet buffer memory using DPDK's pool-based memory allocator. This takes
 /// advantage of built-in DPDK huge page support, NUMA affinity, and access to DMA addresses. See
 /// [Memory in DPDK](https://www.dpdk.org/blog/2019/08/21/memory-in-dpdk-part-1-general-concepts/)
 /// for more details.
@@ -217,8 +194,7 @@ fn default_cache_size() -> usize {
 
 /// Live traffic analysis options.
 ///
-/// Online mode performs traffic analysis on a live network interface. Either
-/// [OnlineConfig](OnlineConfig) or [OfflineConfig](OfflineConfig) must be specified, but not both.
+/// Online mode performs traffic analysis on a live network interface.
 ///
 /// ## Example
 /// ```toml

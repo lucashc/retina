@@ -1,3 +1,6 @@
+//! This module parses a packer and provides a context object that contains information about the packet.
+//! In addition it defines a flow tuple that can be used in a hashmap.
+
 use crate::protocols::packet::ethernet::Ethernet;
 use crate::protocols::packet::tcp::{Tcp, TCP_PROTOCOL};
 use crate::protocols::packet::udp::{Udp, UDP_PROTOCOL};
@@ -14,24 +17,29 @@ use std::cmp;
 use std::fmt;
 use std::net::{IpAddr, SocketAddr};
 
-/// Parsed transport-layer context from the packet used for connection tracking.
+/// Parsed transport-layer context from the packet used for flow tracking.
 #[derive(Debug, Clone, Copy, Hash)]
 pub struct L4Context {
-    /// Source socket address.
+    /// Source socket address (IP and port).
     pub src: SocketAddr,
-    /// Destination socket address.
+    /// Destination socket address (IP and port).
     pub dst: SocketAddr,
-    /// L4 protocol.
+    /// L4 protocol (integer indicating UDP or TCP).
     pub proto: usize,
     /// Offset into the mbuf where payload begins.
     pub offset: usize,
     /// Length of the payload in bytes.
     pub length: usize,
-    /// VLAN id
+    /// VLAN id (last VLAN id of the packet)
     pub vlan_id: Option<u16>,
 }
 
 impl L4Context {
+    /// Create a new `L4Context` object from a `ZcFrame` (aka `Mbuf`) by parsing the packet. It correctly parses:
+    /// * Ethernet
+    /// * VLAN
+    /// * IPv4 and IPv6
+    /// * UDP or TCP
     pub fn new(mbuf: &ZcFrame) -> Result<Self> {
         if let Ok(eth) = mbuf.parse_to::<Ethernet>() {
             if let Ok(ipv4) = eth.parse_to::<Ipv4>() {
@@ -110,6 +118,7 @@ impl L4Context {
         }
     }
 
+    /// Returns a unique `Flow` struct to identify the flow. This flow is unique, as the IPs and ports get compared and the largest one is put first.
     pub fn get_flow(&self) -> Flow {
         Flow(
             self.vlan_id,
@@ -120,6 +129,7 @@ impl L4Context {
     }
 }
 
+/// Struct holding the unique information to identify a flow.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Flow(Option<u16>, SocketAddr, SocketAddr, usize);
 
@@ -146,6 +156,8 @@ impl fmt::Display for Flow {
 }
 
 impl Flow {
+    /// Function to get a filenam that unique identifies the flow.
+    /// Format is: "flow_{}_{}_{}_{}.pkt"
     pub fn to_filename(&self) -> String {
         let vlan = if let Some(vlan) = self.0 {
             vlan.to_string()

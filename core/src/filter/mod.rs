@@ -1,3 +1,9 @@
+//! The filter module contains a special object `FilterCtx` that gets passed to every core and contains
+//! * A shared hashmap of flows
+//! * A timeout for the hashmap
+//! * A thread-local copy of a `RegexSet`
+//! * A sender to send packets non-blockingly for saving.
+
 use dashmap::DashMap;
 
 use crate::protocols::layer4::Flow;
@@ -11,18 +17,19 @@ use std::time::{Duration, Instant};
 #[derive(Debug)]
 pub struct FilterCtx {
     /// Shared amongst all cores
-    flows: Arc<DashMap<Flow, Instant>>,
+    pub flows: Arc<DashMap<Flow, Instant>>,
     /// Shared amongst all cores
-    timeout: Duration,
+    pub timeout: Duration,
     /// Every core has local copy to prevent expensive locks
     /// We use an Arc here only to allow `Send` to the daemon thread
     /// The `Clone` trait implementation makes an explicit clone of the RegexSet.
-    pub(crate) regexes: Arc<RwLock<RegexSet>>,
+    pub regexes: Arc<RwLock<RegexSet>>,
     /// Packet sender channel
-    sender: Sender<(Flow, ZcFrame)>,
+    pub sender: Sender<(Flow, ZcFrame)>,
 }
 
 impl FilterCtx {
+    /// Create a new FilterCtx
     pub fn new(
         reserve_capacity: usize,
         timeout: Duration,
@@ -36,6 +43,8 @@ impl FilterCtx {
         }
     }
 
+    /// Check if the flow has been seen before
+    /// This updates the timestamp of the flow automatically if it has been seen before
     pub fn check_if_existing_flow(&self, flow: &Flow) -> bool {
         // This function also updates the timeout when a match is made
         match self.flows.get_mut(flow) {
@@ -47,24 +56,29 @@ impl FilterCtx {
         }
     }
 
+    // Add the flow to the hashmap with the current timestamp
     pub fn add_flow(&self, flow: &Flow) {
         self.flows.insert(flow.clone(), Instant::now());
     }
 
+    /// Prune flows older than the timeout
     pub fn prune_flows(&self) {
         self.flows
             .retain(|_, timestamp| timestamp.elapsed() < self.timeout);
     }
 
+    /// Check if the payload matches the regular expressions
     pub fn check_match(&self, payload: &[u8]) -> bool {
         self.regexes.read().unwrap().is_match(payload)
     }
 
+    /// Sends a packet over the channel to be saved by receiver
     pub fn send_packet(&self, flow: &Flow, packet: ZcFrame) {
         self.sender.send((flow.clone(), packet)).unwrap();
     }
 }
 
+/// This is a custom `Clone` implementation to make sure that each thread receives its own regexset, so no clone of the `Arc`, but a new one.
 impl Clone for FilterCtx {
     fn clone(&self) -> Self {
         Self {

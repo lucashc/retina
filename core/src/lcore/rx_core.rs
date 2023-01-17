@@ -27,6 +27,7 @@ impl<'a, S> RxCore<'a, S>
 where
     S: Subscribable,
 {
+    /// This creates a new `RXCore`. Note that a `FilterCtx` object is passed along. This object gets cloned such that each `RxCore` has its own local copy.
     pub(crate) fn new(
         core_id: CoreId,
         rxqueues: Vec<RxQueue>,
