@@ -15,10 +15,10 @@ use crate::subscription::*;
 
 use std::collections::BTreeMap;
 use std::ffi::CString;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc};
 
 use anyhow::{bail, Result};
-use regex::bytes::RegexSet;
+
 
 /// The Retina runtime.
 ///
@@ -138,13 +138,5 @@ where
             self.subscription.timers.dump_stats();
         }
         log::info!("Done.");
-    }
-
-    pub fn get_regexes_from_cores(&self) -> Vec<Arc<RwLock<RegexSet>>> {
-        self.online
-            .rx_cores
-            .values()
-            .map(|core| core.filter_ctx.regexes.clone())
-            .collect()
     }
 }
